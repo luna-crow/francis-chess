@@ -182,6 +182,16 @@
     .btn-secondary { background-color: #6c757d; }
     .btn-danger { background-color: var(--accent); }
 
+    .difficulty-select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+
     .status-box {
       margin-top: 10px;
       padding: 8px;
@@ -190,6 +200,28 @@
       font-size: 0.85rem;
       text-align: center;
       font-weight: 500;
+    }
+
+    .opening-box {
+      margin-top: 6px;
+      font-size: 0.8rem;
+      color: var(--primary);
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .pgn-container {
+      margin-top: 10px;
+      padding: 8px;
+      background: #f1f3f5;
+      border-radius: 6px;
+      max-height: 80px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #333;
+      text-align: left;
+      line-height: 1.3;
     }
 
     .piece-palette {
@@ -285,14 +317,82 @@
       'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
     };
 
+    const difficulties = {
+      novice: { depth: 1, skill: 0, movetime: 50 },
+      intermediate: { depth: 2, skill: 5, movetime: 100 },
+      master: { depth: 4, skill: 15, movetime: 200 },
+      grandmaster: { depth: 8, skill: 20, movetime: 400 }
+    };
+
+    const openingBook = {
+      "e4": "King's Pawn Opening",
+      "d4": "Queen's Pawn Opening",
+      "c4": "English Opening",
+      "Nf3": "Réti Opening",
+      "f4": "Bird's Opening",
+      "e4 e5": "Open Game",
+      "e4 e5 Nf3 Nc6 Bb5": "Ruy Lopez",
+      "e4 e5 Nf3 Nc6 Bc4": "Italian Game",
+      "e4 e5 Nf3 Nc6 d4": "Scotch Game",
+      "e4 e5 Nf3 Nc6 Nc3 Nf6": "Four Knights Game",
+      "e4 e5 Nf3 Nf6": "Petrov's Defense",
+      "e4 c5": "Sicilian Defense",
+      "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6": "Sicilian Defense: Najdorf Variation",
+      "e4 e6": "French Defense",
+      "e4 c6": "Caro-Kann Defense",
+      "e4 d5": "Scandinavian Defense",
+      "e4 g6": "Modern Defense",
+      "e4 Nf6": "Alekhine's Defense",
+      "d4 d5": "Closed Game",
+      "d4 d5 c4": "Queen's Gambit",
+      "d4 d5 c4 e6": "Queen's Gambit Declined",
+      "d4 d5 c4 c6": "Slav Defense",
+      "d4 Nf6": "Indian Defense",
+      "d4 Nf6 c4 e6 Nc3 Bb4": "Nimzo-Indian Defense",
+      "d4 Nf6 c4 g6 Nc3 d5": "Grünfeld Defense",
+      "d4 Nf6 c4 g6 Nc3 Bg7": "King's Indian Defense",
+      "d4 f5": "Dutch Defense"
+    };
+
     let game = new Chess();
     let currentMode = 'puzzle';
     let currentPuzzleIndex = 0;
     let selectedSquare = null;
     let palettePiece = 'P';
     let activeDemoPiece = 'n';
+    let currentDifficulty = 'intermediate';
+    let engineWorker = null;
+
+    function initEngine() {
+      if (window.Worker) {
+        try {
+          const blob = new Blob([`
+            importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+          `], { type: 'application/javascript' });
+          engineWorker = new Worker(URL.createObjectURL(blob));
+        } catch (e) {
+          engineWorker = new Worker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+        }
+
+        engineWorker.onmessage = function(event) {
+          const line = event.data;
+          if (line.startsWith('bestmove')) {
+            const moveStr = line.split(' ')[1];
+            if (moveStr && moveStr !== '(none)') {
+              const from = moveStr.substring(0, 2);
+              const to = moveStr.substring(2, 4);
+              const promotion = moveStr.length > 4 ? moveStr[4] : 'q';
+              game.move({ from, to, promotion });
+              renderBoard();
+              updateAIStatus();
+            }
+          }
+        };
+      }
+    }
 
     function init() {
+      initEngine();
       loadPuzzle(0);
     }
 
@@ -382,6 +482,22 @@
       return null;
     }
 
+    function detectOpening() {
+      const historyStr = game.history().join(' ');
+      let matchedOpening = 'Standard Opening / Custom';
+      let longestMatchLen = 0;
+
+      for (const [moves, name] of Object.entries(openingBook)) {
+        if (historyStr === moves || historyStr.startsWith(moves + ' ')) {
+          if (moves.length > longestMatchLen) {
+            longestMatchLen = moves.length;
+            matchedOpening = name;
+          }
+        }
+      }
+      return matchedOpening;
+    }
+
     function handleSquareClick(square) {
       if (currentMode === 'sandbox') {
         if (palettePiece) {
@@ -419,7 +535,8 @@
           if (currentMode === 'puzzle') {
             checkPuzzleSolution(move);
           } else if (currentMode === 'ai' && !game.game_over()) {
-            setTimeout(makeAIMove, 400);
+            updateAIStatus('Thinking...');
+            setTimeout(makeCatchfishMove, 50);
           }
         }
         selectedSquare = null;
@@ -451,12 +568,51 @@
       }
     }
 
-    function makeAIMove() {
-      const moves = game.moves();
-      if (moves.length === 0) return;
-      const randomMove = moves[Math.floor(Math.random() * moves.length)];
-      game.move(randomMove);
-      renderBoard();
+    function makeCatchfishMove() {
+      const cfg = difficulties[currentDifficulty];
+      if (engineWorker) {
+        engineWorker.postMessage('uci');
+        engineWorker.postMessage(`setoption name Skill Level value ${cfg.skill}`);
+        engineWorker.postMessage(`position fen ${game.fen()}`);
+        engineWorker.postMessage(`go depth ${cfg.depth} movetime ${cfg.movetime}`);
+      } else {
+        const moves = game.moves();
+        if (moves.length === 0) return;
+        const randomMove = moves[Math.floor(Math.random() * moves.length)];
+        game.move(randomMove);
+        renderBoard();
+        updateAIStatus();
+      }
+    }
+
+    function updateAIStatus(customMsg) {
+      const statusEl = document.getElementById('ai-status');
+      const openingEl = document.getElementById('opening-name');
+      const pgnEl = document.getElementById('pgn-log');
+
+      if (openingEl) {
+        openingEl.textContent = `Opening: ${detectOpening()}`;
+      }
+
+      if (pgnEl) {
+        pgnEl.textContent = game.pgn() || '1. ...';
+        pgnEl.scrollTop = pgnEl.scrollHeight;
+      }
+
+      if (!statusEl) return;
+
+      if (customMsg) {
+        statusEl.textContent = customMsg;
+        return;
+      }
+
+      if (game.in_checkmate()) {
+        statusEl.textContent = game.turn() === 'w' ? 'Checkmate! Computer wins.' : 'Checkmate! You win!';
+      } else if (game.in_draw()) {
+        statusEl.textContent = 'Game drawn!';
+      } else {
+        statusEl.textContent = game.turn() === 'w' ? 'Your turn (White)' : "Catchfish Engine 18's turn";
+      }
     }
 
     function renderPuzzleControls() {
@@ -477,12 +633,25 @@
       `;
     }
 
+    function setDifficulty(level) {
+      currentDifficulty = level;
+    }
+
     function renderAIControls() {
       const controls = document.getElementById('controls-panel');
       controls.innerHTML = `
-        <h3>Play vs Computer AI</h3>
-        <p>Make a move on the board to start playing against the computer.</p>
-        <button class="btn btn-danger" onclick="game.reset(); renderBoard();">Restart Game</button>
+        <h3>Play vs Computer (Catchfish Engine 18)</h3>
+        <label for="difficulty" style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">Select Difficulty:</label>
+        <select id="difficulty" class="difficulty-select" onchange="setDifficulty(this.value)">
+          <option value="novice" ${currentDifficulty === 'novice' ? 'selected' : ''}>Novice</option>
+          <option value="intermediate" ${currentDifficulty === 'intermediate' ? 'selected' : ''}>Intermediate</option>
+          <option value="master" ${currentDifficulty === 'master' ? 'selected' : ''}>Master</option>
+          <option value="grandmaster" ${currentDifficulty === 'grandmaster' ? 'selected' : ''}>GrandMaster</option>
+        </select>
+        <div id="ai-status" class="status-box">Your turn (White)</div>
+        <div id="opening-name" class="opening-box">Opening: Standard Opening / Custom</div>
+        <div id="pgn-log" class="pgn-container">1. ...</div>
+        <button class="btn btn-danger" style="margin-top:10px;" onclick="game.reset(); renderBoard(); updateAIStatus();">Restart Game</button>
       `;
     }
 
