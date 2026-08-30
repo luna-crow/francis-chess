@@ -417,7 +417,6 @@
       color: #f8fafc;
     }
 
-    /* Scrollbar Polish */
     ::-webkit-scrollbar {
       width: 6px;
     }
@@ -452,12 +451,12 @@
   <div id="board-wrapper">
     <div id="active-opening-title" class="board-header"></div>
     <div class="board-container">
-      <div class="ranks-labels">
+      <div id="ranks-labels" class="ranks-labels">
         <span>8</span><span>7</span><span>6</span><span>5</span>
         <span>4</span><span>3</span><span>2</span><span>1</span>
       </div>
       <div id="board" class="board"></div>
-      <div class="files-labels">
+      <div id="files-labels" class="files-labels">
         <span>a</span><span>b</span><span>c</span><span>d</span>
         <span>e</span><span>f</span><span>g</span><span>h</span>
       </div>
@@ -541,6 +540,7 @@
     let palettePiece = 'P';
     let activeDemoPiece = 'n';
     let currentDifficulty = 'intermediate';
+    let playerSide = 'w';
     let engineWorker = null;
     let gameEnded = false;
 
@@ -585,6 +585,22 @@
       if (el) el.textContent = title;
     }
 
+    function renderBoardLabels(isFlipped) {
+      const ranksEl = document.getElementById('ranks-labels');
+      const filesEl = document.getElementById('files-labels');
+      
+      if (ranksEl) {
+        ranksEl.innerHTML = isFlipped ? 
+          '<span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span>' :
+          '<span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span>';
+      }
+      if (filesEl) {
+        filesEl.innerHTML = isFlipped ?
+          '<span>h</span><span>g</span><span>f</span><span>e</span><span>d</span><span>c</span><span>b</span><span>a</span>' :
+          '<span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span>';
+      }
+    }
+
     function switchMode(mode, evt) {
       currentMode = mode;
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -607,9 +623,7 @@
       if (mode === 'puzzle') {
         loadPuzzle(currentPuzzleIndex);
       } else if (mode === 'ai') {
-        game.reset();
-        renderBoard();
-        renderAIControls();
+        resetAIGame();
       } else if (mode === 'online') {
         game.reset();
         renderBoard();
@@ -633,6 +647,9 @@
       const boardElement = document.getElementById('board');
       boardElement.innerHTML = '';
       const boardState = game.board();
+      const isFlipped = (currentMode === 'ai' && playerSide === 'b') || (currentMode === 'online' && onlineRole === 'b');
+
+      renderBoardLabels(isFlipped);
 
       let legalMoves = [];
       if (selectedSquare && !gameEnded) {
@@ -644,8 +661,11 @@
         }
       }
 
-      for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
+      for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+          const r = isFlipped ? 7 - i : i;
+          const c = isFlipped ? 7 - j : j;
+
           const squareName = String.fromCharCode(97 + c) + (8 - r);
           const square = document.createElement('div');
           square.className = `square ${(r + c) % 2 === 0 ? 'light' : 'dark'}`;
@@ -725,6 +745,10 @@
           }
         }
         renderBoard();
+        return;
+      }
+
+      if (currentMode === 'ai' && game.turn() !== playerSide) {
         return;
       }
 
@@ -862,9 +886,38 @@
         if (currentMode === 'online') {
           statusEl.textContent = game.turn() === onlineRole ? `Your Turn (${onlineRole === 'w' ? 'White' : 'Black'})` : `Opponent's Turn (${game.turn() === 'w' ? 'White' : 'Black'})`;
         } else {
-          statusEl.textContent = game.turn() === 'w' ? 'Your turn (White)' : "Catchfish Engine 18's turn";
+          statusEl.textContent = game.turn() === playerSide ? `Your Turn (${playerSide === 'w' ? 'White' : 'Black'})` : "Catchfish Engine 18's turn";
         }
       }
+    }
+
+    function setPlayerSide(side) {
+      playerSide = side;
+      resetAIGame();
+    }
+
+    function resetAIGame() {
+      gameEnded = false;
+      game.reset();
+      renderBoard();
+      renderAIControls();
+      updateGameStatus();
+      if (playerSide === 'b') {
+        setTimeout(makeCatchfishMove, 200);
+      }
+    }
+
+    function copyPGNToClipboard() {
+      const pgnText = game.pgn();
+      if (!pgnText) {
+        alert("No moves have been made yet!");
+        return;
+      }
+      navigator.clipboard.writeText(pgnText).then(() => {
+        alert("PGN copied to clipboard!");
+      }).catch(err => {
+        console.error("Failed to copy PGN: ", err);
+      });
     }
 
     function resignGame() {
@@ -895,13 +948,18 @@
       const roomInput = document.getElementById('create-room-name');
       const roomName = roomInput.value.trim() || (playerName + "'s Game");
       currentRoomId = roomName.replace(/[^a-zA-Z0-9]/g, "_");
-      onlineRole = 'w';
+      
+      onlineRole = Math.random() < 0.5 ? 'w' : 'b';
       gameEnded = false;
+
+      const hostWhite = onlineRole === 'w' ? playerName : "Waiting...";
+      const hostBlack = onlineRole === 'b' ? playerName : "Waiting...";
 
       db.ref('rooms/' + currentRoomId).set({
         name: roomName,
-        white: playerName,
-        black: "Waiting...",
+        white: hostWhite,
+        black: hostBlack,
+        hostRole: onlineRole,
         fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         turn: 'w',
         status: 'Game Active'
@@ -911,15 +969,31 @@
     }
 
     function joinOnlineRoom(roomId) {
+      if (!roomId) {
+        const joinInput = document.getElementById('join-room-name');
+        if (joinInput) roomId = joinInput.value.trim().replace(/[^a-zA-Z0-9]/g, "_");
+      }
+      if (!roomId) return;
+
       currentRoomId = roomId;
-      onlineRole = 'b';
       gameEnded = false;
 
-      db.ref('rooms/' + currentRoomId).update({
-        black: playerName
-      });
+      db.ref('rooms/' + currentRoomId).once('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
 
-      subscribeToRoom();
+        if (data.white === 'Waiting...') {
+          onlineRole = 'w';
+          db.ref('rooms/' + currentRoomId).update({ white: playerName });
+        } else if (data.black === 'Waiting...') {
+          onlineRole = 'b';
+          db.ref('rooms/' + currentRoomId).update({ black: playerName });
+        } else {
+          onlineRole = data.white === playerName ? 'w' : 'b';
+        }
+
+        subscribeToRoom();
+      });
     }
 
     function listenToRoomList() {
@@ -929,17 +1003,18 @@
         roomContainer.innerHTML = '';
         const rooms = snapshot.val();
         if (!rooms) {
-          roomContainer.innerHTML = '<div style="font-size:0.8rem; color:#64748b;">No active rooms found. Create one!</div>';
+          roomContainer.innerHTML = '<div style="font-size:0.8rem; color:#64748b;">No active rooms found. Create or join one!</div>';
           return;
         }
 
         Object.keys(rooms).forEach((key) => {
           const room = rooms[key];
+          const isFull = room.white !== 'Waiting...' && room.black !== 'Waiting...';
           const div = document.createElement('div');
           div.className = 'room-item';
           div.innerHTML = `
             <span><strong>${room.name}</strong> (${room.white} vs ${room.black})</span>
-            <button class="btn" onclick="joinOnlineRoom('${key}')" ${room.black !== 'Waiting...' && onlineRole !== 'b' ? 'disabled style="opacity:0.5"' : ''}>Join</button>
+            <button class="btn" style="padding: 4px 10px;" onclick="joinOnlineRoom('${key}')" ${isFull ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>Join</button>
           `;
           roomContainer.appendChild(div);
         });
@@ -1022,20 +1097,38 @@
       const controls = document.getElementById('controls-panel');
       controls.innerHTML = `
         <h3>Play vs Computer (Catchfish Engine 18)</h3>
-        <label for="difficulty" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Select Difficulty:</label>
-        <select id="difficulty" class="difficulty-select" onchange="setDifficulty(this.value)">
-          <option value="novice" ${currentDifficulty === 'novice' ? 'selected' : ''}>Novice</option>
-          <option value="intermediate" ${currentDifficulty === 'intermediate' ? 'selected' : ''}>Intermediate</option>
-          <option value="master" ${currentDifficulty === 'master' ? 'selected' : ''}>Master</option>
-          <option value="grandmaster" ${currentDifficulty === 'grandmaster' ? 'selected' : ''}>GrandMaster</option>
-        </select>
-        <div id="game-status" class="status-box">Your turn (White)</div>
+        
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <div style="flex:1;">
+            <label for="player-side" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Play As:</label>
+            <select id="player-side" class="difficulty-select" style="margin:0;" onchange="setPlayerSide(this.value)">
+              <option value="w" ${playerSide === 'w' ? 'selected' : ''}>White</option>
+              <option value="b" ${playerSide === 'b' ? 'selected' : ''}>Black</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label for="difficulty" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Difficulty:</label>
+            <select id="difficulty" class="difficulty-select" style="margin:0;" onchange="setDifficulty(this.value)">
+              <option value="novice" ${currentDifficulty === 'novice' ? 'selected' : ''}>Novice</option>
+              <option value="intermediate" ${currentDifficulty === 'intermediate' ? 'selected' : ''}>Intermediate</option>
+              <option value="master" ${currentDifficulty === 'master' ? 'selected' : ''}>Master</option>
+              <option value="grandmaster" ${currentDifficulty === 'grandmaster' ? 'selected' : ''}>GrandMaster</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="game-status" class="status-box">Your turn (${playerSide === 'w' ? 'White' : 'Black'})</div>
         <div id="opening-name" class="opening-box">Opening: Standard Opening / Custom</div>
         <div id="pgn-log" class="pgn-container">1. ...</div>
+        
+        <div style="margin-top:6px; text-align:right;">
+          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" onclick="copyPGNToClipboard()">📋 Copy PGN</button>
+        </div>
+
         <div style="display:flex; gap:6px; margin-top:10px;">
           <button class="btn btn-warning" style="flex:1;" onclick="offerDraw()">🤝 Draw</button>
           <button class="btn btn-danger" style="flex:1;" onclick="resignGame()">🏳️ Resign</button>
-          <button class="btn btn-secondary" style="flex:1;" onclick="gameEnded=false; game.reset(); renderBoard(); updateGameStatus();">🔄 Reset</button>
+          <button class="btn btn-secondary" style="flex:1;" onclick="resetAIGame()">🔄 Reset</button>
         </div>
       `;
     }
@@ -1046,9 +1139,14 @@
         <h3>Online Rooms & Live Chat</h3>
         <div id="net-status" class="status-box" style="margin-bottom:10px;">Lobby: Active Rooms Available Below</div>
         
-        <div style="display:flex; gap:6px; margin-bottom:10px;">
-          <input type="text" id="create-room-name" class="online-input" style="margin:0;" placeholder="Enter Room Name">
+        <div style="display:flex; gap:6px; margin-bottom:6px;">
+          <input type="text" id="create-room-name" class="online-input" style="margin:0;" placeholder="Create Room Name">
           <button class="btn" style="white-space:nowrap;" onclick="createOnlineRoom()">Create Room</button>
+        </div>
+
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+          <input type="text" id="join-room-name" class="online-input" style="margin:0;" placeholder="Enter Room Name to Join">
+          <button class="btn btn-secondary" style="white-space:nowrap;" onclick="joinOnlineRoom()">Join Room</button>
         </div>
 
         <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Public Rooms:</label>
