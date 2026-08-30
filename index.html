@@ -545,7 +545,7 @@
     let engineWorker = null;
     let gameEnded = false;
 
-    // Persistent Unique Session Player ID
+    // Persistent Player Username (Editable)
     if (!sessionStorage.getItem('francis_player_id')) {
       sessionStorage.setItem('francis_player_id', "Player_" + Math.floor(1000 + Math.random() * 9000));
     }
@@ -584,6 +584,14 @@
     function init() {
       initEngine();
       loadPuzzle(0);
+    }
+
+    function updateUsername(val) {
+      const trimmed = val.trim();
+      if (trimmed) {
+        playerName = trimmed;
+        sessionStorage.setItem('francis_player_id', playerName);
+      }
     }
 
     function setBoardTitle(title) {
@@ -1166,6 +1174,11 @@
         <h3>Online Rooms & Live Chat</h3>
         <div id="net-status" class="status-box" style="margin-bottom:10px;">Lobby: Active Rooms Available Below</div>
         
+        <div style="margin-bottom:10px;">
+          <label for="username-input" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Your Username:</label>
+          <input type="text" id="username-input" class="online-input" style="margin:0;" value="${playerName}" placeholder="Enter your username" oninput="updateUsername(this.value)">
+        </div>
+
         <div style="display:flex; gap:6px; margin-bottom:6px;">
           <input type="text" id="create-room-name" class="online-input" style="margin:0;" placeholder="Create Room Name">
           <button class="btn" style="white-space:nowrap;" onclick="createOnlineRoom()">Create Room</button>
