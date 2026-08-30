@@ -209,6 +209,47 @@
       50% { transform: scale(1.15); opacity: 1; }
     }
 
+    /* Promotion Modal Overlay */
+    .promotion-modal {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
+      z-index: 50;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .promotion-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .promotion-options {
+      display: flex;
+      gap: 12px;
+    }
+
+    .promotion-btn {
+      font-size: 2.2rem;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .promotion-btn:hover {
+      background: var(--primary);
+      transform: scale(1.1);
+    }
+
     .controls {
       width: 100%;
       max-width: 400px;
@@ -432,6 +473,11 @@
         <span>e</span><span>f</span><span>g</span><span>h</span>
       </div>
     </div>
+
+    <div id="promotion-modal" class="promotion-modal">
+      <div class="promotion-title">Promote Pawn To:</div>
+      <div id="promotion-options" class="promotion-options"></div>
+    </div>
   </div>
 
   <div class="controls" id="controls-panel">
@@ -514,6 +560,7 @@
     let playerSide = 'w';
     let engineWorker = null;
     let gameEnded = false;
+    let pendingPromotionMove = null;
 
     // Persistent Device Username
     if (!localStorage.getItem('francis_user_name')) {
@@ -594,6 +641,8 @@
       selectedSquare = null;
       hintSquare = null;
       gameEnded = false;
+      pendingPromotionMove = null;
+      hidePromotionModal();
       setBoardTitle("");
 
       if (mode === 'learn') {
@@ -706,7 +755,7 @@
     }
 
     function handleSquareClick(square) {
-      if (gameEnded) return;
+      if (gameEnded || pendingPromotionMove) return;
 
       if (currentMode === 'sandbox') {
         if (palettePiece) {
@@ -746,25 +795,71 @@
           renderBoard();
         }
       } else {
-        const move = game.move({ from: selectedSquare, to: square, promotion: 'q' });
-        if (move) {
-          hintSquare = null;
-          if (currentMode === 'puzzle') {
-            checkPuzzleSolution(move);
-          } else if (currentMode === 'ai' && !game.game_over()) {
-            updateGameStatus('Thinking...');
-            setTimeout(makeCatchfishMove, 50);
-          } else if (currentMode === 'online' && currentRoomId) {
-            db.ref('rooms/' + currentRoomId).update({
-              fen: game.fen(),
-              turn: game.turn()
-            });
-            updateGameStatus();
+        const movingPiece = game.get(selectedSquare);
+        const isPawnPromotion = movingPiece && movingPiece.type === 'p' && (square.endsWith('8') || square.endsWith('1'));
+
+        if (isPawnPromotion) {
+          const possibleMoves = game.moves({ square: selectedSquare, verbose: true });
+          const isValidTarget = possibleMoves.some(m => m.to === square);
+          if (isValidTarget) {
+            pendingPromotionMove = { from: selectedSquare, to: square };
+            showPromotionModal(movingPiece.color);
+            selectedSquare = null;
+            renderBoard();
+            return;
           }
         }
+
+        executeMove(selectedSquare, square, 'q');
         selectedSquare = null;
         renderBoard();
       }
+    }
+
+    function showPromotionModal(color) {
+      const modal = document.getElementById('promotion-modal');
+      const optionsContainer = document.getElementById('promotion-options');
+      const pieceTypes = ['q', 'r', 'b', 'n'];
+      
+      optionsContainer.innerHTML = pieceTypes.map(type => {
+        const pieceChar = color === 'w' ? type.toUpperCase() : type;
+        return `<button class="promotion-btn ${color === 'w' ? 'piece-white' : 'piece-black'}" onclick="selectPromotion('${type}')">${pieceSymbols[pieceChar]}</button>`;
+      }).join('');
+
+      modal.style.display = 'flex';
+    }
+
+    function hidePromotionModal() {
+      const modal = document.getElementById('promotion-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function selectPromotion(promotionPiece) {
+      if (!pendingPromotionMove) return;
+      const { from, to } = pendingPromotionMove;
+      pendingPromotionMove = null;
+      hidePromotionModal();
+      executeMove(from, to, promotionPiece);
+    }
+
+    function executeMove(from, to, promotion) {
+      const move = game.move({ from, to, promotion });
+      if (move) {
+        hintSquare = null;
+        if (currentMode === 'puzzle') {
+          checkPuzzleSolution(move);
+        } else if (currentMode === 'ai' && !game.game_over()) {
+          updateGameStatus('Thinking...');
+          setTimeout(makeCatchfishMove, 50);
+        } else if (currentMode === 'online' && currentRoomId) {
+          db.ref('rooms/' + currentRoomId).update({
+            fen: game.fen(),
+            turn: game.turn()
+          });
+          updateGameStatus();
+        }
+      }
+      renderBoard();
     }
 
     function demoOpening(name, moveList) {
@@ -785,6 +880,8 @@
       selectedSquare = null;
       hintSquare = null;
       gameEnded = false;
+      pendingPromotionMove = null;
+      hidePromotionModal();
       renderBoard();
       renderPuzzleControls();
     }
@@ -805,10 +902,11 @@
 
     function checkPuzzleSolution(move) {
       const puzzle = puzzles[currentPuzzleIndex];
-      const moveStr = move.from + move.to;
+      const moveStr = move.from + move.to + (move.promotion || '');
+      const baseMoveStr = move.from + move.to;
       const statusEl = document.getElementById('puzzle-status');
 
-      if (puzzle.solution.includes(moveStr) || game.in_checkmate()) {
+      if (puzzle.solution.includes(moveStr) || puzzle.solution.includes(baseMoveStr) || game.in_checkmate()) {
         statusEl.style.color = '#34d399';
         statusEl.textContent = '🎉 Correct! Puzzle Solved!';
         gameEnded = true;
@@ -880,6 +978,8 @@
 
     function resetAIGame() {
       gameEnded = false;
+      pendingPromotionMove = null;
+      hidePromotionModal();
       game.reset();
       renderBoard();
       renderAIControls();
