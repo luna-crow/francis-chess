@@ -3,632 +3,452 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Francis Chess - Interactive Puzzles, Sandbox & vs Computer</title>
-  
-  <!-- Chess.js library for rule validation and move generation -->
+  <title>Francis Chess - Interactive Rules, Sandbox & AI</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-
   <style>
     :root {
-      --primary: #1e3a8a;
-      --accent: #2563eb;
+      --primary: #4a6fa5;
+      --accent: #ff6b6b;
       --light-sq: #f0d9b5;
       --dark-sq: #b58863;
-      --highlight: #7fc97f;
-      --move-dot: rgba(37, 99, 235, 0.45);
-      --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #1e293b;
+      --bg: #f8f9fa;
+      --card: #ffffff;
+      --text: #2b2d42;
     }
 
-    * { box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: var(--bg);
       color: var(--text);
       margin: 0;
-      padding: 1.5rem 1rem;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
-    .wrapper { max-width: 950px; margin: 0 auto; }
-
-    header {
-      background: var(--card-bg);
-      padding: 1.5rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-      margin-bottom: 1.5rem;
-      border-left: 6px solid var(--primary);
+    h1 {
+      margin: 10px 0 5px;
+      color: var(--primary);
+      text-align: center;
     }
 
-    h1 { margin: 0; color: var(--primary); font-size: 2rem; }
-    .subtitle { margin: 0.25rem 0 0; color: #64748b; }
+    .subtitle {
+      font-size: 0.95rem;
+      color: #6c757d;
+      margin-bottom: 15px;
+      text-align: center;
+    }
 
-    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 15px;
+      width: 100%;
+      max-width: 540px;
+    }
+
     .tab-btn {
-      padding: 0.75rem 1.25rem;
-      border-radius: 8px 8px 0 0;
-      border: none;
-      background: #e2e8f0;
-      color: var(--text);
+      background-color: var(--card);
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
       font-weight: 600;
+      color: var(--primary);
       cursor: pointer;
-    }
-    .tab-btn.active { background: var(--card-bg); color: var(--primary); border-top: 3px solid var(--primary); }
-
-    .grid-layout {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      transition: all 0.2s ease;
     }
 
-    @media(min-width: 768px) {
-      .grid-layout { grid-template-columns: 380px 1fr; }
+    .tab-btn.active {
+      background-color: var(--primary);
+      color: white;
+      border-color: var(--primary);
     }
 
-    .card {
-      background: var(--card-bg);
-      padding: 1.25rem;
+    #board-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 540px;
+      background: var(--card);
+      padding: 10px;
       border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-sizing: border-box;
     }
 
-    .board-wrapper {
+    .board-container {
       display: grid;
       grid-template-columns: 24px 1fr;
       grid-template-rows: 1fr 24px;
       width: 100%;
-      max-width: 360px;
-      margin: 0 auto;
-      user-select: none;
+      box-sizing: border-box;
     }
 
-    .rank-labels {
+    .ranks-labels {
       display: grid;
       grid-template-rows: repeat(8, 1fr);
       align-items: center;
       justify-items: center;
       font-weight: bold;
-      color: #64748b;
+      color: var(--primary);
       font-size: 0.85rem;
     }
 
-    .file-labels {
+    .files-labels {
       grid-column: 2;
       display: grid;
       grid-template-columns: repeat(8, 1fr);
       align-items: center;
       justify-items: center;
       font-weight: bold;
-      color: #64748b;
+      color: var(--primary);
       font-size: 0.85rem;
       padding-top: 4px;
     }
 
-    .chessboard {
+    .board {
       grid-column: 2;
       grid-row: 1;
       display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      grid-template-rows: repeat(8, 1fr);
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-template-rows: repeat(8, minmax(0, 1fr));
       width: 100%;
-      aspect-ratio: 1;
-      border: 3px solid #334155;
+      aspect-ratio: 1 / 1;
+      border: 2px solid #333;
       border-radius: 4px;
       overflow: hidden;
+      box-sizing: border-box;
     }
 
     .square {
       display: flex;
       justify-content: center;
       align-items: center;
+      font-size: min(6.5vw, 2.2rem);
+      line-height: 1;
       cursor: pointer;
-      position: relative;
+      user-select: none;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
     }
 
     .square.light { background-color: var(--light-sq); }
     .square.dark { background-color: var(--dark-sq); }
-    .square.selected { background-color: var(--highlight) !important; }
-    
-    .square.legal-move::after {
-      content: '';
-      width: 16px;
-      height: 16px;
-      background-color: var(--move-dot);
-      border-radius: 50%;
-      position: absolute;
+    .square.selected { background-color: #baca44 !important; }
+
+    .controls {
+      width: 100%;
+      max-width: 540px;
+      margin-top: 15px;
+      background: var(--card);
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      box-sizing: border-box;
     }
 
-    .piece-svg {
-      width: 90%;
-      height: 90%;
-      pointer-events: none;
-      z-index: 2;
-      filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.45));
-    }
-
-    .status-box {
-      padding: 1rem;
-      border-radius: 8px;
-      background: #f1f5f9;
-      margin-bottom: 1rem;
-      font-weight: 600;
-    }
-
-    .btn-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
-
-    button {
-      padding: 0.6rem 1rem;
-      cursor: pointer;
-      border-radius: 6px;
-      border: none;
-      background: var(--accent);
+    .btn {
+      background-color: var(--primary);
       color: white;
-      font-weight: 500;
-    }
-
-    button:hover { background: #1d4ed8; }
-    button.btn-sec { background: #64748b; }
-    button.btn-sec:hover { background: #475569; }
-    button.btn-danger { background: #ef4444; }
-    button.btn-danger:hover { background: #dc2626; }
-
-    .palette {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 0.5rem;
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #e2e8f0;
-    }
-
-    .palette-item {
-      aspect-ratio: 1;
-      border: 2px solid #cbd5e1;
+      border: none;
+      padding: 8px 12px;
       border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       cursor: pointer;
-      background: #f8fafc;
+      font-weight: 600;
+      font-size: 0.85rem;
     }
 
-    .palette-item.active { border-color: var(--accent); background: #dbeafe; }
+    .btn:hover { opacity: 0.9; }
+    .btn-secondary { background-color: #6c757d; }
+    .btn-danger { background-color: var(--accent); }
 
-    .hint-box {
-      display: none;
-      margin-top: 0.5rem;
-      padding: 0.75rem;
-      background: #fef3c7;
-      color: #92400e;
+    .piece-palette {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    .palette-piece {
+      font-size: 1.8rem;
+      padding: 4px 8px;
+      background: #e9ecef;
       border-radius: 6px;
-      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .palette-piece.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .guide-section {
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    .guide-section h3 {
+      color: var(--primary);
+      margin-top: 15px;
+      margin-bottom: 5px;
+      border-bottom: 2px solid #e9ecef;
+      padding-bottom: 4px;
+    }
+
+    .guide-item {
+      margin-bottom: 10px;
+    }
+
+    .guide-item strong {
+      color: var(--text);
     }
   </style>
 </head>
 <body>
 
-  <div class="wrapper">
-    <header>
-      <h1>Francis Chess</h1>
-      <p class="subtitle">Interactive Puzzles, Custom Sandbox &amp; Computer AI</p>
-    </header>
+  <h1>Francis Chess</h1>
+  <div class="subtitle">Custom Sandbox & Computer AI</div>
 
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchMode('puzzles')">🎯 Puzzles Mode</button>
-      <button class="tab-btn" onclick="switchMode('bot')">🤖 Play vs Computer</button>
-      <button class="tab-btn" onclick="switchMode('demo')">♟️ Movement Demo</button>
-      <button class="tab-btn" onclick="switchMode('sandbox')">🛠️ Sandbox Builder</button>
-    </div>
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchMode('ai', event)">🤖 Play vs Computer</button>
+    <button class="tab-btn" onclick="switchMode('demo', event)">♟️ Movement Demo</button>
+    <button class="tab-btn" onclick="switchMode('sandbox', event)">🛠️ Sandbox Builder</button>
+    <button class="tab-btn" onclick="switchMode('learn', event)">📖 Learn Chess</button>
+  </div>
 
-    <div class="grid-layout">
-      <div class="card">
-        <div class="board-wrapper">
-          <div class="rank-labels">
-            <span>8</span><span>7</span><span>6</span><span>5</span>
-            <span>4</span><span>3</span><span>2</span><span>1</span>
-          </div>
-          <div id="chessboard" class="chessboard"></div>
-          <div class="file-labels">
-            <span>a</span><span>b</span><span>c</span><span>d</span>
-            <span>e</span><span>f</span><span>g</span><span>h</span>
-          </div>
-        </div>
+  <div id="board-wrapper">
+    <div class="board-container">
+      <div class="ranks-labels">
+        <span>8</span><span>7</span><span>6</span><span>5</span>
+        <span>4</span><span>3</span><span>2</span><span>1</span>
       </div>
-
-      <div class="card">
-        <!-- Puzzles Panel -->
-        <div id="puzzle-controls">
-          <div id="status" class="status-box">Puzzle 1: Back-Rank Mate</div>
-          <p id="description">White to move. Deliver checkmate in 1 move with your Rook.</p>
-          <div class="btn-group">
-            <button onclick="loadPuzzle(0)">Puzzle 1</button>
-            <button onclick="loadPuzzle(1)">Puzzle 2</button>
-            <button onclick="loadPuzzle(2)">Puzzle 3</button>
-          </div>
-          <div class="btn-group">
-            <button class="btn-sec" onclick="toggleHint()">💡 Hint</button>
-            <button class="btn-sec" onclick="resetCurrentPuzzle()">🔄 Reset</button>
-          </div>
-          <div id="hint-text" class="hint-box"></div>
-        </div>
-
-        <!-- Computer Bot Controls Panel -->
-        <div id="bot-controls" style="display:none;">
-          <div id="bot-status" class="status-box">Your Turn (White)</div>
-          <p>Play a full game of chess against the computer opponent!</p>
-          <div class="btn-group">
-            <button class="btn-sec" onclick="startNewBotGame()">🔄 Start New Game</button>
-          </div>
-        </div>
-
-        <!-- Demo Panel -->
-        <div id="demo-controls" style="display:none;">
-          <div class="status-box" id="demo-title">Select a Piece</div>
-          <p id="demo-desc">Click any piece below to view legal moves.</p>
-          <div class="btn-group">
-            <button onclick="showPieceDemo('P')">Pawn</button>
-            <button onclick="showPieceDemo('N')">Knight</button>
-            <button onclick="showPieceDemo('B')">Bishop</button>
-            <button onclick="showPieceDemo('R')">Rook</button>
-            <button onclick="showPieceDemo('Q')">Queen</button>
-            <button onclick="showPieceDemo('K')">King</button>
-          </div>
-        </div>
-
-        <!-- Sandbox Panel -->
-        <div id="sandbox-controls" style="display:none;">
-          <div class="status-box">Custom Board Builder</div>
-          <p>Select a piece below to place or remove it on the board.</p>
-          <div class="btn-group">
-            <button class="btn-sec" onclick="setupStandardBoard()">♟️ Standard Setup</button>
-            <button class="btn-danger" onclick="clearBoard()">🗑️ Clear Board</button>
-          </div>
-          <div class="palette" id="white-palette"></div>
-          <div class="palette" id="black-palette" style="margin-top:0.5rem; padding-top:0;"></div>
-        </div>
+      <div id="board" class="board"></div>
+      <div class="files-labels">
+        <span>a</span><span>b</span><span>c</span><span>d</span>
+        <span>e</span><span>f</span><span>g</span><span>h</span>
       </div>
     </div>
   </div>
 
+  <div class="controls" id="controls-panel"></div>
+
   <script>
-    const SVG_PIECES = {
-      'R': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M9 39h27v-3H9v3zm3-3h21v-4H12v4zm0-5h21l-2-19H14l-2 19zm15-22h3v-4h-3v4zm-7 0h3v-4h-3v4zm-7 0h3v-4h-3v4z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
-      'K': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M22.5 11.63V6M20 8h5M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5M11.5 37h22v-3h-22v3zm2-3h18v-3h-18v3zm0-3c0-3 2.5-6 5.5-8h7c3 2 5.5 5 5.5 8h-18z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
-      'Q': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M9 26c1.5 2 3 4 5 5h17c2-1 3.5-3 5-5l-4-12-7 9-2.5-11L20 23l-7-9-4 12zm0 11h27v-3H9v3z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
-      'B': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><g fill="url(#wG)" stroke="#222" stroke-width="1.5"><path d="M9 36h27v-2H9v2zm3-2h21v-3H12v3zm1.5-3h18l1-4H12.5l1 4z"/><path d="M22.5 9c-2.5 0-4 2-4 4 0 2 2.5 4 4 4s4-2 4-4c0-2-1.5-4-4-4zm0 8c-3 0-6 3-6 7 0 3 2 6 6 9 4-3 6-6 6-9 0-4-3-7-6-7z"/></g></svg>`,
-      'N': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M22 10C17.5 10 14 12.5 14 17c0 3 2.5 5 3.5 8 1 3 0 6-3 8.5h17.5c1-2 1-5 0-7.5-1-2.5-3-4.5-3-7.5 0-4.5-2.5-9-7-9z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
-      'P': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 10.97h23c0-5.42-4.41-9.91-7.41-10.97C28.06 24.84 29 23.03 29 21c0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
-      'k': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M22.5 11.63V6M20 8h5M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5M11.5 37h22v-3h-22v3zm2-3h18v-3h-18v3zm0-3c0-3 2.5-6 5.5-8h7c3 2 5.5 5 5.5 8h-18z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`,
-      'q': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M9 26c1.5 2 3 4 5 5h17c2-1 3.5-3 5-5l-4-12-7 9-2.5-11L20 23l-7-9-4 12zm0 11h27v-3H9v3z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`,
-      'r': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M9 39h27v-3H9v3zm3-3h21v-4H12v4zm0-5h21l-2-19H14l-2 19zm15-22h3v-4h-3v4zm-7 0h3v-4h-3v4zm-7 0h3v-4h-3v4z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`,
-      'b': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><g fill="url(#bG)" stroke="#000" stroke-width="1.5"><path d="M9 36h27v-2H9v2zm3-2h21v-3H12v3zm1.5-3h18l1-4H12.5l1 4z"/><path d="M22.5 9c-2.5 0-4 2-4 4 0 2 2.5 4 4 4s4-2 4-4c0-2-1.5-4-4-4zm0 8c-3 0-6 3-6 7 0 3 2 6 6 9 4-3 6-6 6-9 0-4-3-7-6-7z"/></g></svg>`,
-      'n': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M22 10C17.5 10 14 12.5 14 17c0 3 2.5 5 3.5 8 1 3 0 6-3 8.5h17.5c1-2 1-5 0-7.5-1-2.5-3-4.5-3-7.5 0-4.5-2.5-9-7-9z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`,
-      'p': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 10.97h23c0-5.42-4.41-9.91-7.41-10.97C28.06 24.84 29 23.03 29 21c0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`
+    const pieceSymbols = {
+      'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
+      'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
     };
 
-    const puzzles = [
-      {
-        title: "Puzzle 1: Back-Rank Mate",
-        description: "White to move. Deliver checkmate in 1 move with your Rook.",
-        hint: "Move the White Rook from a1 to square a8.",
-        solution: { from: "a1", to: "a8" },
-        grid: [
-          ["", "", "", "", "", "k", "", ""],
-          ["", "", "", "", "", "p", "p", "p"],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["R", "", "", "", "K", "", "", ""]
-        ]
-      },
-      {
-        title: "Puzzle 2: The Knight Fork",
-        description: "White to move. Attack both the Black King and Rook simultaneously.",
-        hint: "Move the Knight on e4 to square d6.",
-        solution: { from: "e4", to: "d6" },
-        grid: [
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "r", "", "", "", "", ""],
-          ["", "", "k", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "N", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "K", "", "", ""]
-        ]
-      }
-    ];
-
-    let chessGame = new Chess();
-    let currentMode = 'puzzles';
-    let currentIdx = 0;
+    let game = new Chess();
+    let currentMode = 'ai';
     let selectedSquare = null;
-    let selectedPalettePiece = null;
-    let boardState = [];
-    let highlightMoves = [];
+    let palettePiece = 'P';
 
-    const files = ['a','b','c','d','e','f','g','h'];
+    function init() {
+      switchMode('ai');
+    }
 
-    function posToSquare(r, c) { return files[c] + (8 - r); }
+    function switchMode(mode, evt) {
+      currentMode = mode;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      if (evt) evt.target.classList.add('active');
+
+      const wrapper = document.getElementById('board-wrapper');
+      selectedSquare = null;
+
+      if (mode === 'learn') {
+        wrapper.style.display = 'none';
+        renderLearnControls();
+        return;
+      }
+
+      wrapper.style.display = 'block';
+
+      if (mode === 'ai') {
+        game.reset();
+        renderBoard();
+        renderAIControls();
+      } else if (mode === 'demo') {
+        game.clear();
+        game.put({ type: 'n', color: 'w' }, 'd4');
+        renderBoard();
+        renderDemoControls();
+      } else if (mode === 'sandbox') {
+        game.clear();
+        renderBoard();
+        renderSandboxControls();
+      }
+    }
 
     function renderBoard() {
-      const boardEl = document.getElementById("chessboard");
-      boardEl.innerHTML = "";
+      const boardElement = document.getElementById('board');
+      boardElement.innerHTML = '';
+      const boardState = game.board();
 
       for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
-          const sqName = posToSquare(r, c);
-          const sqDiv = document.createElement("div");
-          sqDiv.className = `square ${(r + c) % 2 === 0 ? "light" : "dark"}`;
-          sqDiv.dataset.square = sqName;
+          const squareName = String.fromCharCode(97 + c) + (8 - r);
+          const square = document.createElement('div');
+          square.className = `square ${(r + c) % 2 === 0 ? 'light' : 'dark'}`;
+          square.dataset.square = squareName;
 
-          if (selectedSquare === sqName) sqDiv.classList.add("selected");
-          if (highlightMoves.includes(sqName)) sqDiv.classList.add("legal-move");
+          if (selectedSquare === squareName) square.classList.add('selected');
 
           const piece = boardState[r][c];
-          if (piece && SVG_PIECES[piece]) {
-            sqDiv.innerHTML = SVG_PIECES[piece];
+          if (piece) {
+            const pieceChar = piece.color === 'w' ? piece.type.toUpperCase() : piece.type.toLowerCase();
+            square.textContent = pieceSymbols[pieceChar] || '';
           }
 
-          sqDiv.addEventListener("click", () => handleSquareClick(sqName, r, c));
-          boardEl.appendChild(sqDiv);
+          square.onclick = () => handleSquareClick(squareName);
+          boardElement.appendChild(square);
         }
       }
     }
 
-    function handleSquareClick(sqName, r, c) {
-      if (currentMode === 'puzzles') {
-        handlePuzzleClick(sqName, r, c);
-      } else if (currentMode === 'bot') {
-        handleBotClick(sqName, r, c);
-      } else if (currentMode === 'sandbox') {
-        handleSandboxClick(r, c);
+    function handleSquareClick(square) {
+      if (currentMode === 'sandbox') {
+        if (palettePiece) {
+          const color = palettePiece === palettePiece.toUpperCase() ? 'w' : 'b';
+          const type = palettePiece.toLowerCase();
+          game.put({ type, color }, square);
+          renderBoard();
+        }
+        return;
       }
-    }
 
-    function handlePuzzleClick(sqName, r, c) {
-      const p = puzzles[currentIdx];
       if (!selectedSquare) {
-        const piece = boardState[r][c];
-        if (piece && piece === piece.toUpperCase()) {
-          selectedSquare = sqName;
+        const piece = game.get(square);
+        if (piece && (currentMode === 'ai' ? piece.color === game.turn() : true)) {
+          selectedSquare = square;
           renderBoard();
         }
       } else {
-        if (selectedSquare === p.solution.from && sqName === p.solution.to) {
-          const fromR = 8 - parseInt(p.solution.from[1]);
-          const fromC = files.indexOf(p.solution.from[0]);
-          const piece = boardState[fromR][fromC];
-          
-          boardState[fromR][fromC] = "";
-          boardState[r][c] = piece;
-
-          document.getElementById("status").innerText = "🎉 Correct! Great move.";
-          document.getElementById("status").style.background = "#dcfce7";
-        } else {
-          document.getElementById("status").innerText = "❌ Incorrect move. Try again!";
-          document.getElementById("status").style.background = "#fee2e2";
+        const moveObj = { from: selectedSquare, to: square, promotion: 'q' };
+        const move = game.move(moveObj);
+        if (move) {
+          if (currentMode === 'ai' && !game.game_over()) {
+            setTimeout(makeAIMove, 400);
+          }
         }
         selectedSquare = null;
         renderBoard();
       }
     }
 
-    /* Computer Opponent Game Logic */
-    function handleBotClick(sqName, r, c) {
-      if (chessGame.turn() !== 'w' || chessGame.game_over()) return;
-
-      if (!selectedSquare) {
-        const legalMoves = chessGame.moves({ square: sqName, verbose: true });
-        if (legalMoves.length > 0) {
-          selectedSquare = sqName;
-          highlightMoves = legalMoves.map(m => m.to);
-          renderBoard();
-        }
-      } else {
-        const move = chessGame.move({ from: selectedSquare, to: sqName, promotion: 'q' });
-        selectedSquare = null;
-        highlightMoves = [];
-
-        if (move) {
-          syncBoardWithChessJs();
-          renderBoard();
-          checkBotGameStatus();
-
-          if (!chessGame.game_over()) {
-            document.getElementById("bot-status").innerText = "🤖 Computer is thinking...";
-            setTimeout(makeComputerMove, 400);
-          }
-        } else {
-          renderBoard();
-        }
-      }
-    }
-
-    function makeComputerMove() {
-      const moves = chessGame.moves();
+    function makeAIMove() {
+      const moves = game.moves();
       if (moves.length === 0) return;
-
-      // Select a move (prefers captures, fallback to legal moves)
-      const captureMoves = chessGame.moves({ verbose: true }).filter(m => m.captured);
-      const chosenMove = captureMoves.length > 0 
-        ? captureMoves[Math.floor(Math.random() * captureMoves.length)]
-        : moves[Math.floor(Math.random() * moves.length)];
-
-      chessGame.move(chosenMove);
-      syncBoardWithChessJs();
-      renderBoard();
-      checkBotGameStatus();
-    }
-
-    function checkBotGameStatus() {
-      const statusEl = document.getElementById("bot-status");
-      if (chessGame.in_checkmate()) {
-        statusEl.innerText = chessGame.turn() === 'b' ? "🎉 Checkmate! You Win!" : "💀 Checkmate! Computer Wins!";
-      } else if (chessGame.in_draw()) {
-        statusEl.innerText = "🤝 Game Draw!";
-      } else {
-        statusEl.innerText = chessGame.turn() === 'w' ? "Your Turn (White)" : "🤖 Computer's Turn";
-      }
-    }
-
-    function syncBoardWithChessJs() {
-      const asciiBoard = chessGame.board();
-      boardState = asciiBoard.map(row => 
-        row.map(sq => (sq ? (sq.color === 'w' ? sq.type.toUpperCase() : sq.type) : ""))
-      );
-    }
-
-    function startNewBotGame() {
-      chessGame.reset();
-      selectedSquare = null;
-      highlightMoves = [];
-      syncBoardWithChessJs();
-      renderBoard();
-      document.getElementById("bot-status").innerText = "Your Turn (White)";
-    }
-
-    function handleSandboxClick(r, c) {
-      if (selectedPalettePiece) {
-        boardState[r][c] = (boardState[r][c] === selectedPalettePiece) ? "" : selectedPalettePiece;
-      } else {
-        boardState[r][c] = "";
-      }
+      const randomMove = moves[Math.floor(Math.random() * moves.length)];
+      game.move(randomMove);
       renderBoard();
     }
 
-    function switchMode(mode) {
-      currentMode = mode;
-      selectedSquare = null;
-      highlightMoves = [];
-
-      const tabs = document.querySelectorAll('.tab-btn');
-      tabs[0].classList.toggle('active', mode === 'puzzles');
-      tabs[1].classList.toggle('active', mode === 'bot');
-      tabs[2].classList.toggle('active', mode === 'demo');
-      tabs[3].classList.toggle('active', mode === 'sandbox');
-
-      document.getElementById('puzzle-controls').style.display = mode === 'puzzles' ? 'block' : 'none';
-      document.getElementById('bot-controls').style.display = mode === 'bot' ? 'block' : 'none';
-      document.getElementById('demo-controls').style.display = mode === 'demo' ? 'block' : 'none';
-      document.getElementById('sandbox-controls').style.display = mode === 'sandbox' ? 'block' : 'none';
-
-      if (mode === 'puzzles') {
-        loadPuzzle(currentIdx);
-      } else if (mode === 'bot') {
-        startNewBotGame();
-      } else if (mode === 'demo') {
-        showPieceDemo('N');
-      } else {
-        clearBoard();
-        buildPalettes();
-      }
+    function renderAIControls() {
+      const controls = document.getElementById('controls-panel');
+      controls.innerHTML = `
+        <h3>Play vs Computer AI</h3>
+        <p>Make a move on the board to start playing against the computer.</p>
+        <button class="btn btn-danger" onclick="game.reset(); renderBoard();">Restart Game</button>
+      `;
     }
 
-    function showPieceDemo(pieceType) {
-      clearBoard();
-      const centerR = 4, centerC = 3;
-      boardState[centerR][centerC] = pieceType;
-      selectedSquare = posToSquare(centerR, centerC);
-
-      const names = { 'P': 'Pawn', 'N': 'Knight', 'B': 'Bishop', 'R': 'Rook', 'Q': 'Queen', 'K': 'King' };
-      document.getElementById('demo-title').innerText = `${names[pieceType]} Movement Demo`;
-
-      if (pieceType === 'P') highlightMoves = ['d5', 'd6'];
-      else if (pieceType === 'N') highlightMoves = ['c6', 'e6', 'b5', 'f5', 'b3', 'f3', 'c2', 'e2'];
-      else if (pieceType === 'B') highlightMoves = ['c5','b6','a7','e5','f6','g7','h8','c3','b2','a1','e3','f2','g1'];
-      else if (pieceType === 'R') highlightMoves = ['d5','d6','d7','d8','d3','d2','d1','a4','b4','c4','e4','f4','g4','h4'];
-      else if (pieceType === 'Q') highlightMoves = ['c5','b6','a7','e5','f6','g7','h8','c3','b2','a1','e3','f2','g1','d5','d6','d7','d8','d3','d2','d1','a4','b4','c4','e4','f4','g4','h4'];
-      else if (pieceType === 'K') highlightMoves = ['c5','d5','e5','c4','e4','c3','d3','e3'];
-
-      renderBoard();
-    }
-
-    function buildPalettes() {
-      const wPalette = document.getElementById('white-palette');
-      const bPalette = document.getElementById('black-palette');
-      wPalette.innerHTML = '';
-      bPalette.innerHTML = '';
-
-      const whitePieces = ['K','Q','R','B','N','P'];
-      const blackPieces = ['k','q','r','b','n','p'];
-
-      whitePieces.forEach(p => {
-        const item = document.createElement('div');
-        item.className = 'palette-item';
-        item.innerHTML = SVG_PIECES[p];
-        item.onclick = () => selectPalettePiece(p, item);
-        wPalette.appendChild(item);
-      });
-
-      blackPieces.forEach(p => {
-        const item = document.createElement('div');
-        item.className = 'palette-item';
-        item.innerHTML = SVG_PIECES[p];
-        item.onclick = () => selectPalettePiece(p, item);
-        bPalette.appendChild(item);
-      });
-    }
-
-    function selectPalettePiece(p, element) {
-      document.querySelectorAll('.palette-item').forEach(el => el.classList.remove('active'));
-      if (selectedPalettePiece === p) {
-        selectedPalettePiece = null;
-      } else {
-        selectedPalettePiece = p;
-        element.classList.add('active');
-      }
-    }
-
-    function clearBoard() {
-      boardState = Array(8).fill(null).map(() => Array(8).fill(""));
-      highlightMoves = [];
-      renderBoard();
-    }
-
-    function setupStandardBoard() {
-      boardState = [
-        ["r", "n", "b", "q", "k", "b", "n", "r"],
-        ["p", "p", "p", "p", "p", "p", "p", "p"],
-        ["", "", "", "", "", "", "", ""],
-        ["", "", "", "", "", "", "", ""],
-        ["", "", "", "", "", "", "", ""],
-        ["", "", "", "", "", "", "", ""],
-        ["P", "P", "P", "P", "P", "P", "P", "P"],
-        ["R", "N", "B", "Q", "K", "B", "N", "R"]
+    function renderDemoControls() {
+      const pieces = [
+        { name: 'Knight', char: 'N' }, { name: 'Bishop', char: 'B' },
+        { name: 'Rook', char: 'R' }, { name: 'Queen', char: 'Q' },
+        { name: 'King', char: 'K' }, { name: 'Pawn', char: 'P' }
       ];
-      highlightMoves = [];
+      const controls = document.getElementById('controls-panel');
+      controls.innerHTML = `
+        <h3>Movement Demo</h3>
+        <p>Select a piece type to demonstrate legal moves on an empty board:</p>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          ${pieces.map(p => `
+            <button class="btn btn-secondary" onclick="setDemoPiece('${p.char.toLowerCase()}')">${p.name}</button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function setDemoPiece(type) {
+      game.clear();
+      game.put({ type, color: 'w' }, 'd4');
       renderBoard();
     }
 
-    function loadPuzzle(idx) {
-      currentIdx = idx;
-      selectedSquare = null;
-      highlightMoves = [];
-      const p = puzzles[idx];
-      boardState = p.grid.map(row => [...row]);
-      
-      document.getElementById("status").innerText = p.title;
-      document.getElementById("status").style.background = "#f1f5f9";
-      document.getElementById("description").innerText = p.description;
-      document.getElementById("hint-text").innerText = p.hint;
-      document.getElementById("hint-text").style.display = "none";
-
-      renderBoard();
+    function renderSandboxControls() {
+      const pieces = ['P','N','B','R','Q','K','p','n','b','r','q','k'];
+      const controls = document.getElementById('controls-panel');
+      controls.innerHTML = `
+        <h3>Sandbox Board Builder</h3>
+        <p>Select a piece below, then tap any square on the board to place it.</p>
+        <div class="piece-palette">
+          ${pieces.map(p => `
+            <span class="palette-piece ${p === palettePiece ? 'active' : ''}" onclick="selectPalettePiece('${p}')">
+              ${pieceSymbols[p]}
+            </span>
+          `).join('')}
+        </div>
+        <div style="margin-top:15px; display:flex; gap:8px;">
+          <button class="btn btn-secondary" onclick="game.reset(); renderBoard();">Standard Setup</button>
+          <button class="btn btn-danger" onclick="game.clear(); renderBoard();">Clear Board</button>
+        </div>
+      `;
     }
 
-    function toggleHint() {
-      const h = document.getElementById("hint-text");
-      h.style.display = h.style.display === "block" ? "none" : "block";
+    function selectPalettePiece(p) {
+      palettePiece = p;
+      renderSandboxControls();
     }
 
-    function resetCurrentPuzzle() { loadPuzzle(currentIdx); }
+    function renderLearnControls() {
+      const controls = document.getElementById('controls-panel');
+      controls.innerHTML = `
+        <div class="guide-section">
+          <h3>♟️ How Pieces Move & Capture</h3>
+          <div class="guide-item">
+            <strong>Pawn (♙/♟):</strong> Moves forward 1 square (or 2 squares on its very first move). Captures 1 square diagonally forward.
+          </div>
+          <div class="guide-item">
+            <strong>Knight (♘/♞):</strong> Moves in an "L-shape" (2 squares vertically + 1 horizontally, or vice versa). It is the only piece that can jump over other pieces. Captures by landing on an opponent piece.
+          </div>
+          <div class="guide-item">
+            <strong>Bishop (♗/♝):</strong> Moves and captures any number of squares diagonally. Remains on its starting square color throughout the game.
+          </div>
+          <div class="guide-item">
+            <strong>Rook (♖/♜):</strong> Moves and captures any number of squares horizontally or vertically in straight lines.
+          </div>
+          <div class="guide-item">
+            <strong>Queen (♕/♛):</strong> Combines the power of the Rook and Bishop. Moves and captures any number of squares diagonally, horizontally, or vertically.
+          </div>
+          <div class="guide-item">
+            <strong>King (♔/♚):</strong> Moves and captures 1 square in any direction (horizontal, vertical, or diagonal). Must be protected at all costs.
+          </div>
 
-    window.onload = () => loadPuzzle(0);
+          <h3>📜 Fundamental Chess Concepts</h3>
+          <div class="guide-item">
+            <strong>Check:</strong> Occurs when a King is directly under attack by an opponent's piece. The King MUST escape check immediately by moving, blocking, or capturing the attacking piece.
+          </div>
+          <div class="guide-item">
+            <strong>Checkmate:</strong> Occurs when a King is in Check and has no legal moves to escape. This ends and wins the game!
+          </div>
+          <div class="guide-item">
+            <strong>En Passant:</strong> A special pawn capture. If an opponent advances a pawn 2 squares forward right next to your pawn, you can capture it diagonally behind as if it had only moved 1 square (must be done immediately on that turn).
+          </div>
+          <div class="guide-item">
+            <strong>Pawn Promotion:</strong> When a pawn reaches the opposite end of the board (the 8th rank for White, 1st rank for Black), it must be promoted to a Queen, Rook, Bishop, or Knight!
+          </div>
+        </div>
+      `;
+    }
+
+    window.onload = init;
   </script>
 </body>
 </html>
-  
