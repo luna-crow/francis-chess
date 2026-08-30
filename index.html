@@ -464,7 +464,8 @@
   </div>
 
   <div class="controls" id="controls-panel">
-    </div>
+    <!-- Dynamic controls populate here -->
+  </div>
 
   <script>
     const firebaseConfig = {
@@ -544,10 +545,15 @@
     let engineWorker = null;
     let gameEnded = false;
 
+    // Persistent Unique Session Player ID
+    if (!sessionStorage.getItem('francis_player_id')) {
+      sessionStorage.setItem('francis_player_id', "Player_" + Math.floor(1000 + Math.random() * 9000));
+    }
+    let playerName = sessionStorage.getItem('francis_player_id');
+
     // Online Multiplayer States
     let currentRoomId = null;
     let onlineRole = 'w';
-    let playerName = "Player_" + Math.floor(Math.random() * 899 + 100);
 
     function initEngine() {
       if (window.Worker) {
@@ -946,9 +952,15 @@
     // Multiplayer Room & Chat Logic
     function createOnlineRoom() {
       const roomInput = document.getElementById('create-room-name');
-      const roomName = roomInput.value.trim() || (playerName + "'s Game");
-      currentRoomId = roomName.replace(/[^a-zA-Z0-9]/g, "_");
-      
+      const roomName = (roomInput && roomInput.value.trim()) ? roomInput.value.trim() : (playerName + "'s Game");
+      const targetRoomId = roomName.replace(/[^a-zA-Z0-9]/g, "_");
+
+      if (currentRoomId) {
+        db.ref('rooms/' + currentRoomId).off();
+        db.ref('chats/' + currentRoomId).off();
+      }
+
+      currentRoomId = targetRoomId;
       onlineRole = Math.random() < 0.5 ? 'w' : 'b';
       gameEnded = false;
 
@@ -963,33 +975,48 @@
         fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         turn: 'w',
         status: 'Game Active'
+      }).then(() => {
+        subscribeToRoom();
       });
-
-      subscribeToRoom();
     }
 
-    function joinOnlineRoom(roomId) {
-      if (!roomId) {
+    function joinOnlineRoom(targetRoomId) {
+      if (!targetRoomId) {
         const joinInput = document.getElementById('join-room-name');
-        if (joinInput) roomId = joinInput.value.trim().replace(/[^a-zA-Z0-9]/g, "_");
+        if (joinInput && joinInput.value.trim()) {
+          targetRoomId = joinInput.value.trim().replace(/[^a-zA-Z0-9]/g, "_");
+        }
       }
-      if (!roomId) return;
+      if (!targetRoomId) return;
 
-      currentRoomId = roomId;
+      if (currentRoomId) {
+        db.ref('rooms/' + currentRoomId).off();
+        db.ref('chats/' + currentRoomId).off();
+      }
+
+      currentRoomId = targetRoomId;
       gameEnded = false;
 
-      db.ref('rooms/' + currentRoomId).once('value', (snapshot) => {
+      db.ref('rooms/' + currentRoomId).once('value').then((snapshot) => {
         const data = snapshot.val();
-        if (!data) return;
+        if (!data) {
+          alert("Room not found!");
+          return;
+        }
 
-        if (data.white === 'Waiting...') {
+        if (data.white === playerName) {
+          onlineRole = 'w';
+        } else if (data.black === playerName) {
+          onlineRole = 'b';
+        } else if (data.white === 'Waiting...') {
           onlineRole = 'w';
           db.ref('rooms/' + currentRoomId).update({ white: playerName });
         } else if (data.black === 'Waiting...') {
           onlineRole = 'b';
           db.ref('rooms/' + currentRoomId).update({ black: playerName });
         } else {
-          onlineRole = data.white === playerName ? 'w' : 'b';
+          alert("Room is already full!");
+          return;
         }
 
         subscribeToRoom();
@@ -1009,12 +1036,12 @@
 
         Object.keys(rooms).forEach((key) => {
           const room = rooms[key];
-          const isFull = room.white !== 'Waiting...' && room.black !== 'Waiting...';
+          const isFull = room.white !== 'Waiting...' && room.black !== 'Waiting...' && room.white !== playerName && room.black !== playerName;
           const div = document.createElement('div');
           div.className = 'room-item';
           div.innerHTML = `
             <span><strong>${room.name}</strong> (${room.white} vs ${room.black})</span>
-            <button class="btn" style="padding: 4px 10px;" onclick="joinOnlineRoom('${key}')" ${isFull ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>Join</button>
+            <button class="btn" style="padding: 4px 10px;" onclick="joinOnlineRoom('${key}')" ${isFull ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>${isFull ? 'Full' : 'Join'}</button>
           `;
           roomContainer.appendChild(div);
         });
@@ -1058,7 +1085,7 @@
 
     function sendChatMessage() {
       const input = document.getElementById('chat-input');
-      const text = input.value.trim();
+      const text = input ? input.value.trim() : '';
       if (!text || !currentRoomId) return;
 
       db.ref('chats/' + currentRoomId).push({
