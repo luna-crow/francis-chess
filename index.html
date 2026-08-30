@@ -192,6 +192,28 @@
     }
     .square.hint { background-color: var(--accent-amber) !important; }
 
+    .square.in-check {
+      background-color: #ef4444 !important;
+      box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.4);
+      animation: checkPulse 1.2s infinite alternate ease-in-out;
+    }
+
+    .square.in-checkmate {
+      background-color: #991b1b !important;
+      box-shadow: inset 0 0 16px #ef4444, 0 0 12px #ef4444 !important;
+      animation: checkmatePulse 0.8s infinite alternate ease-in-out;
+    }
+
+    @keyframes checkPulse {
+      0% { background-color: #f87171 !important; }
+      100% { background-color: #dc2626 !important; }
+    }
+
+    @keyframes checkmatePulse {
+      0% { transform: scale(1); background-color: #b91c1c !important; }
+      100% { transform: scale(0.96); background-color: #7f1d1d !important; }
+    }
+
     .legal-dot {
       position: absolute;
       width: 14px;
@@ -336,6 +358,18 @@
       text-align: center;
       font-weight: 600;
       color: #e2e8f0;
+    }
+
+    .points-box {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      font-size: 0.8rem;
+      display: flex;
+      justify-content: space-around;
+      font-weight: 700;
     }
 
     .opening-box {
@@ -492,6 +526,67 @@
     }
     const db = firebase.database();
 
+    // Audio Context Synthesizer for Chess Sound Effects
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      const now = audioCtx.currentTime;
+
+      if (type === 'move') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.08);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      } else if (type === 'capture') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.12);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === 'check') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(587.33, now); // D5
+        osc.frequency.setValueAtTime(880, now + 0.1); // A5
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'mate') {
+        [440, 554.37, 659.25, 880].forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+          gain.gain.setValueAtTime(0.3, now + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.25);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + idx * 0.1);
+          osc.stop(now + idx * 0.1 + 0.25);
+        });
+      }
+    }
+
     const puzzles = [
       { name: "Back-Rank Mate", fen: "6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1", desc: "White to move. Deliver checkmate in 1 move with your Rook.", solution: ["a1a8"], hint: "Look at Black's undefended back rank." },
       { name: "Queen Skewer", fen: "3k4/8/8/3q4/8/8/8/3R2K1 w - - 0 1", desc: "White to move. Skewer the King and win the Queen.", solution: ["d1d5"], hint: "The Black King and Queen are aligned vertically." },
@@ -507,6 +602,10 @@
     const pieceSymbols = {
       'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
       'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
+    };
+
+    const pieceValues = {
+      'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0
     };
 
     const difficulties = {
@@ -557,10 +656,12 @@
     let palettePiece = 'P';
     let activeDemoPiece = 'n';
     let currentDifficulty = 'intermediate';
+    let aiMatchType = 'human_vs_ai'; // 'human_vs_ai', 'ai_vs_ai', 'human_vs_human'
     let playerSide = 'w';
     let engineWorker = null;
     let gameEnded = false;
     let pendingPromotionMove = null;
+    let aiLoopTimer = null;
 
     // Persistent Device Username
     if (!localStorage.getItem('francis_user_name')) {
@@ -589,9 +690,7 @@
               const from = moveStr.substring(0, 2);
               const to = moveStr.substring(2, 4);
               const promotion = moveStr.length > 4 ? moveStr[4] : 'q';
-              game.move({ from, to, promotion });
-              renderBoard();
-              updateGameStatus();
+              executeMove(from, to, promotion);
             }
           }
         };
@@ -601,6 +700,37 @@
     function init() {
       initEngine();
       loadPuzzle(0);
+    }
+
+    function calculateMaterial() {
+      const boardState = game.board();
+      let whitePoints = 0;
+      let blackPoints = 0;
+
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const piece = boardState[r][c];
+          if (piece) {
+            const val = pieceValues[piece.type] || 0;
+            if (piece.color === 'w') whitePoints += val;
+            else blackPoints += val;
+          }
+        }
+      }
+      return { whitePoints, blackPoints };
+    }
+
+    function findKingSquare(color) {
+      const boardState = game.board();
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const piece = boardState[r][c];
+          if (piece && piece.type === 'k' && piece.color === color) {
+            return String.fromCharCode(97 + c) + (8 - r);
+          }
+        }
+      }
+      return null;
     }
 
     function updateUsername(val) {
@@ -644,6 +774,10 @@
       pendingPromotionMove = null;
       hidePromotionModal();
       setBoardTitle("");
+      if (aiLoopTimer) {
+        clearTimeout(aiLoopTimer);
+        aiLoopTimer = null;
+      }
 
       if (mode === 'learn') {
         wrapper.style.display = 'none';
@@ -680,9 +814,13 @@
       const boardElement = document.getElementById('board');
       boardElement.innerHTML = '';
       const boardState = game.board();
-      const isFlipped = (currentMode === 'ai' && playerSide === 'b') || (currentMode === 'online' && onlineRole === 'b');
+      const isFlipped = (currentMode === 'ai' && aiMatchType === 'human_vs_ai' && playerSide === 'b') || (currentMode === 'online' && onlineRole === 'b');
 
       renderBoardLabels(isFlipped);
+
+      const inCheck = game.in_check();
+      const inMate = game.in_checkmate();
+      const kingInCheckSq = (inCheck || inMate) ? findKingSquare(game.turn()) : null;
 
       let legalMoves = [];
       if (selectedSquare && !gameEnded) {
@@ -706,6 +844,14 @@
 
           if (selectedSquare === squareName) square.classList.add('selected');
           if (hintSquare === squareName) square.classList.add('hint');
+
+          if (squareName === kingInCheckSq) {
+            if (inMate) {
+              square.classList.add('in-checkmate');
+            } else {
+              square.classList.add('in-check');
+            }
+          }
 
           const piece = boardState[r][c];
           if (piece) {
@@ -771,7 +917,10 @@
         const currentSquare = findDemoPieceSquare();
         if (currentSquare && currentSquare !== square) {
           const move = game.move({ from: currentSquare, to: square, promotion: 'q' });
-          if (!move) {
+          if (move) {
+            if (move.captured) playSound('capture');
+            else playSound('move');
+          } else {
             const piece = game.get(currentSquare);
             game.clear();
             if (piece) game.put(piece, square);
@@ -781,7 +930,10 @@
         return;
       }
 
-      if (currentMode === 'ai' && game.turn() !== playerSide) return;
+      if (currentMode === 'ai') {
+        if (aiMatchType === 'ai_vs_ai') return; // Completely automated
+        if (aiMatchType === 'human_vs_ai' && game.turn() !== playerSide) return;
+      }
 
       if (currentMode === 'online') {
         if (!currentRoomId) return;
@@ -790,7 +942,8 @@
 
       if (!selectedSquare) {
         const piece = game.get(square);
-        if (piece && ((currentMode === 'puzzle' || currentMode === 'ai' || currentMode === 'online') ? piece.color === game.turn() : true)) {
+        const isAllowedTurn = (currentMode === 'ai' && aiMatchType === 'human_vs_human') ? (piece && piece.color === game.turn()) : (piece && piece.color === game.turn());
+        if (isAllowedTurn) {
           selectedSquare = square;
           renderBoard();
         }
@@ -846,11 +999,29 @@
       const move = game.move({ from, to, promotion });
       if (move) {
         hintSquare = null;
+
+        if (game.in_checkmate()) {
+          playSound('mate');
+        } else if (game.in_check()) {
+          playSound('check');
+        } else if (move.captured) {
+          playSound('capture');
+        } else {
+          playSound('move');
+        }
+
         if (currentMode === 'puzzle') {
           checkPuzzleSolution(move);
-        } else if (currentMode === 'ai' && !game.game_over()) {
-          updateGameStatus('Thinking...');
-          setTimeout(makeCatchfishMove, 50);
+        } else if (currentMode === 'ai') {
+          updateGameStatus();
+          if (!game.game_over()) {
+            if (aiMatchType === 'ai_vs_ai') {
+              aiLoopTimer = setTimeout(makeCatchfishMove, 300);
+            } else if (aiMatchType === 'human_vs_ai' && game.turn() !== playerSide) {
+              updateGameStatus('Thinking...');
+              aiLoopTimer = setTimeout(makeCatchfishMove, 50);
+            }
+          }
         } else if (currentMode === 'online' && currentRoomId) {
           db.ref('rooms/' + currentRoomId).update({
             fen: game.fen(),
@@ -918,7 +1089,7 @@
     }
 
     function makeCatchfishMove() {
-      if (gameEnded) return;
+      if (gameEnded || game.game_over()) return;
       const cfg = difficulties[currentDifficulty];
       if (engineWorker) {
         engineWorker.postMessage('uci');
@@ -926,12 +1097,10 @@
         engineWorker.postMessage(`position fen ${game.fen()}`);
         engineWorker.postMessage(`go depth ${cfg.depth} movetime ${cfg.movetime}`);
       } else {
-        const moves = game.moves();
+        const moves = game.moves({ verbose: true });
         if (moves.length === 0) return;
         const randomMove = moves[Math.floor(Math.random() * moves.length)];
-        game.move(randomMove);
-        renderBoard();
-        updateGameStatus();
+        executeMove(randomMove.from, randomMove.to, randomMove.promotion || 'q');
       }
     }
 
@@ -939,6 +1108,7 @@
       const statusEl = document.getElementById('game-status');
       const openingEl = document.getElementById('opening-name');
       const pgnEl = document.getElementById('pgn-log');
+      const pointsEl = document.getElementById('material-points');
 
       if (openingEl) {
         openingEl.textContent = `Opening: ${detectOpening()}`;
@@ -947,6 +1117,11 @@
       if (pgnEl) {
         pgnEl.textContent = game.pgn() || '1. ...';
         pgnEl.scrollTop = pgnEl.scrollHeight;
+      }
+
+      if (pointsEl) {
+        const mat = calculateMaterial();
+        pointsEl.innerHTML = `<span>⚪ White Points: <strong>${mat.whitePoints}</strong></span><span>⚫ Black Points: <strong>${mat.blackPoints}</strong></span>`;
       }
 
       if (!statusEl) return;
@@ -965,10 +1140,21 @@
       } else {
         if (currentMode === 'online') {
           statusEl.textContent = game.turn() === onlineRole ? `Your Turn (${onlineRole === 'w' ? 'White' : 'Black'})` : `Opponent's Turn (${game.turn() === 'w' ? 'White' : 'Black'})`;
-        } else {
-          statusEl.textContent = game.turn() === playerSide ? `Your Turn (${playerSide === 'w' ? 'White' : 'Black'})` : "Catchfish Engine 18's turn";
+        } else if (currentMode === 'ai') {
+          if (aiMatchType === 'ai_vs_ai') {
+            statusEl.textContent = `AI vs AI (Turn: ${game.turn() === 'w' ? 'White' : 'Black'})`;
+          } else if (aiMatchType === 'human_vs_human') {
+            statusEl.textContent = `Local Play (Turn: ${game.turn() === 'w' ? 'White' : 'Black'})`;
+          } else {
+            statusEl.textContent = game.turn() === playerSide ? `Your Turn (${playerSide === 'w' ? 'White' : 'Black'})` : "Catchfish Engine 18's turn";
+          }
         }
       }
+    }
+
+    function setAIMatchType(type) {
+      aiMatchType = type;
+      resetAIGame();
     }
 
     function setPlayerSide(side) {
@@ -980,11 +1166,18 @@
       gameEnded = false;
       pendingPromotionMove = null;
       hidePromotionModal();
+      if (aiLoopTimer) {
+        clearTimeout(aiLoopTimer);
+        aiLoopTimer = null;
+      }
       game.reset();
       renderBoard();
       renderAIControls();
       updateGameStatus();
-      if (playerSide === 'b') {
+
+      if (aiMatchType === 'ai_vs_ai') {
+        aiLoopTimer = setTimeout(makeCatchfishMove, 300);
+      } else if (aiMatchType === 'human_vs_ai' && playerSide === 'b') {
         setTimeout(makeCatchfishMove, 200);
       }
     }
@@ -1004,23 +1197,31 @@
 
     function resignGame() {
       gameEnded = true;
+      if (aiLoopTimer) {
+        clearTimeout(aiLoopTimer);
+        aiLoopTimer = null;
+      }
       if (currentMode === 'online' && currentRoomId) {
         const winner = onlineRole === 'w' ? 'Black' : 'White';
         db.ref('rooms/' + currentRoomId).update({
           status: `${playerName} Resigned. ${winner} Wins!`
         });
       } else {
-        updateGameStatus("You Resigned. Computer Wins!");
+        updateGameStatus("Game Resigned!");
       }
     }
 
     function offerDraw() {
+      if (aiLoopTimer) {
+        clearTimeout(aiLoopTimer);
+        aiLoopTimer = null;
+      }
       if (currentMode === 'online' && currentRoomId) {
         db.ref('rooms/' + currentRoomId).update({
           status: `${playerName} Offered a Draw.`
         });
       } else {
-        updateGameStatus("Draw offered. Computer accepted the Draw!");
+        updateGameStatus("Draw agreed!");
         gameEnded = true;
       }
     }
@@ -1128,8 +1329,21 @@
       db.ref('rooms/' + currentRoomId).on('value', (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
+
+        const prevFen = game.fen();
         game.load(data.fen);
         renderBoard();
+
+        if (prevFen !== data.fen && prevFen !== "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
+          if (game.in_checkmate()) {
+            playSound('mate');
+          } else if (game.in_check()) {
+            playSound('check');
+          } else {
+            playSound('move');
+          }
+        }
+
         if (data.status && data.status !== 'Game Active') {
           updateGameStatus(data.status);
           gameEnded = true;
@@ -1197,18 +1411,29 @@
     function renderAIControls() {
       const controls = document.getElementById('controls-panel');
       controls.innerHTML = `
-        <h3>Play vs Computer (Catchfish Engine 18)</h3>
+        <h3>Play vs Computer / AI Hub</h3>
         
+        <div style="margin-bottom:8px;">
+          <label for="ai-match-type" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Game Mode:</label>
+          <select id="ai-match-type" class="difficulty-select" style="margin:0;" onchange="setAIMatchType(this.value)">
+            <option value="human_vs_ai" ${aiMatchType === 'human_vs_ai' ? 'selected' : ''}>Human vs Computer</option>
+            <option value="ai_vs_ai" ${aiMatchType === 'ai_vs_ai' ? 'selected' : ''}>Computer vs Computer</option>
+            <option value="human_vs_human" ${aiMatchType === 'human_vs_human' ? 'selected' : ''}>Human vs Human (Local)</option>
+          </select>
+        </div>
+
         <div style="display:flex; gap:10px; margin-bottom:10px;">
+          ${aiMatchType === 'human_vs_ai' ? `
+            <div style="flex:1;">
+              <label for="player-side" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Play As:</label>
+              <select id="player-side" class="difficulty-select" style="margin:0;" onchange="setPlayerSide(this.value)">
+                <option value="w" ${playerSide === 'w' ? 'selected' : ''}>White</option>
+                <option value="b" ${playerSide === 'b' ? 'selected' : ''}>Black</option>
+              </select>
+            </div>
+          ` : ''}
           <div style="flex:1;">
-            <label for="player-side" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Play As:</label>
-            <select id="player-side" class="difficulty-select" style="margin:0;" onchange="setPlayerSide(this.value)">
-              <option value="w" ${playerSide === 'w' ? 'selected' : ''}>White</option>
-              <option value="b" ${playerSide === 'b' ? 'selected' : ''}>Black</option>
-            </select>
-          </div>
-          <div style="flex:1;">
-            <label for="difficulty" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Difficulty:</label>
+            <label for="difficulty" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Engine Level:</label>
             <select id="difficulty" class="difficulty-select" style="margin:0;" onchange="setDifficulty(this.value)">
               <option value="novice" ${currentDifficulty === 'novice' ? 'selected' : ''}>Novice</option>
               <option value="intermediate" ${currentDifficulty === 'intermediate' ? 'selected' : ''}>Intermediate</option>
@@ -1218,7 +1443,8 @@
           </div>
         </div>
 
-        <div id="game-status" class="status-box">Your turn (${playerSide === 'w' ? 'White' : 'Black'})</div>
+        <div id="game-status" class="status-box">Ready</div>
+        <div id="material-points" class="points-box"><span>⚪ White Points: <strong>39</strong></span><span>⚫ Black Points: <strong>39</strong></span></div>
         <div id="opening-name" class="opening-box">Opening: Standard Opening / Custom</div>
         <div id="pgn-log" class="pgn-container">1. ...</div>
         
@@ -1259,7 +1485,13 @@
         <div id="public-rooms-list" class="room-list"></div>
 
         <div id="game-status" class="status-box">Join or create a room to play</div>
+        <div id="material-points" class="points-box"><span>⚪ White Points: <strong>39</strong></span><span>⚫ Black Points: <strong>39</strong></span></div>
         <div id="opening-name" class="opening-box">Opening: Standard Opening / Custom</div>
+        <div id="pgn-log" class="pgn-container">1. ...</div>
+        
+        <div style="margin-top:6px; text-align:right;">
+          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 8px;" onclick="copyPGNToClipboard()">📋 Copy PGN</button>
+        </div>
 
         <div style="display:flex; gap:6px; margin-top:8px;">
           <button class="btn btn-warning" style="flex:1;" onclick="offerDraw()">🤝 Draw</button>
