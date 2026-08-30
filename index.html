@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Francis Chess - Interactive Puzzles, Rules & AI</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
   <style>
     :root {
       --primary: #4a6fa5;
@@ -139,6 +140,7 @@
     .square.light { background-color: var(--light-sq); }
     .square.dark { background-color: var(--dark-sq); }
     .square.selected { background-color: #baca44 !important; }
+    .square.hint { background-color: #f39c12 !important; }
 
     .legal-dot {
       position: absolute;
@@ -180,9 +182,10 @@
 
     .btn:hover { opacity: 0.9; }
     .btn-secondary { background-color: #6c757d; }
+    .btn-warning { background-color: #f39c12; }
     .btn-danger { background-color: var(--accent); }
 
-    .difficulty-select {
+    .difficulty-select, .online-input {
       width: 100%;
       padding: 8px;
       border-radius: 6px;
@@ -276,6 +279,7 @@
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="switchMode('puzzle', event)">🧩 Puzzles Mode</button>
     <button class="tab-btn" onclick="switchMode('ai', event)">🤖 Play vs Computer</button>
+    <button class="tab-btn" onclick="switchMode('online', event)">🕹️ Play Online</button>
     <button class="tab-btn" onclick="switchMode('demo', event)">♟️ Movement Demo</button>
     <button class="tab-btn" onclick="switchMode('sandbox', event)">🛠️ Sandbox Builder</button>
     <button class="tab-btn" onclick="switchMode('learn', event)">📖 Learn Chess</button>
@@ -301,15 +305,15 @@
 
   <script>
     const puzzles = [
-      { name: "Back-Rank Mate", fen: "6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1", desc: "White to move. Deliver checkmate in 1 move with your Rook.", solution: ["a1a8"] },
-      { name: "Queen Skewer", fen: "3k4/8/8/3q4/8/8/8/3R2K1 w - - 0 1", desc: "White to move. Skewer the King and win the Queen.", solution: ["d1d5"] },
-      { name: "Smothered Mate", fen: "6rk/6pp/7N/8/8/8/8/7K w - - 0 1", desc: "White to move. Deliver checkmate using the Knight.", solution: ["h6f7"] },
-      { name: "Scholar's Mate Finish", fen: "r1bqkb1r/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1", desc: "White to move. Deliver checkmate in 1 move.", solution: ["f3f7"] },
-      { name: "Discovered Check", fen: "3k4/8/8/8/3B4/8/3R4/3K4 w - - 0 1", desc: "White to move. Move the Bishop to reveal check from the Rook.", solution: ["d4b6"] },
-      { name: "Rook Checkmate", fen: "4k3/8/4K3/8/8/8/8/7R w - - 0 1", desc: "White to move. Deliver back-rank checkmate with the Rook.", solution: ["h1h8"] },
-      { name: "Support Mate", fen: "k7/8/1K6/8/8/8/8/7Q w - - 0 1", desc: "White to move. Deliver checkmate supported by the King.", solution: ["h1a1"] },
-      { name: "Pawn Promotion Check", fen: "4k3/3P4/8/8/8/8/8/4K3 w - - 0 1", desc: "White to move. Promote the pawn and give check.", solution: ["d7d8q"] },
-      { name: "Double Check Mate", fen: "3k4/8/3R1N2/8/8/8/8/3K4 w - - 0 1", desc: "White to move. Deliver mate with a Knight move giving double check.", solution: ["f6e8"] }
+      { name: "Back-Rank Mate", fen: "6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1", desc: "White to move. Deliver checkmate in 1 move with your Rook.", solution: ["a1a8"], hint: "Look at Black's undefended back rank. Your Rook on a1 can deliver mate!" },
+      { name: "Queen Skewer", fen: "3k4/8/8/3q4/8/8/8/3R2K1 w - - 0 1", desc: "White to move. Skewer the King and win the Queen.", solution: ["d1d5"], hint: "The Black King and Queen are aligned vertically on the d-file." },
+      { name: "Smothered Mate", fen: "6rk/6pp/7N/8/8/8/8/7K w - - 0 1", desc: "White to move. Deliver checkmate using the Knight.", solution: ["h6f7"], hint: "Jump your Knight to f7! The Black King is trapped by its own pieces." },
+      { name: "Scholar's Mate Finish", fen: "r1bqkb1r/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1", desc: "White to move. Deliver checkmate in 1 move.", solution: ["f3f7"], hint: "Target the vulnerable f7 square with your Queen supported by the Bishop." },
+      { name: "Discovered Check", fen: "3k4/8/8/8/3B4/8/3R4/3K4 w - - 0 1", desc: "White to move. Move the Bishop to reveal check from the Rook.", solution: ["d4b6"], hint: "Move the Bishop on d4 out of the way with check to reveal an attack from the Rook behind it." },
+      { name: "Rook Checkmate", fen: "4k3/8/4K3/8/8/8/8/7R w - - 0 1", desc: "White to move. Deliver back-rank checkmate with the Rook.", solution: ["h1h8"], hint: "Move your Rook to h8 to attack the King along the 8th rank." },
+      { name: "Support Mate", fen: "k7/8/1K6/8/8/8/8/7Q w - - 0 1", desc: "White to move. Deliver checkmate supported by the King.", solution: ["h1a1"], hint: "Swing your Queen over to the a-file." },
+      { name: "Pawn Promotion Check", fen: "4k3/3P4/8/8/8/8/8/4K3 w - - 0 1", desc: "White to move. Promote the pawn and give check.", solution: ["d7d8q"], hint: "Push your pawn to d8 and promote it to a Queen!" },
+      { name: "Double Check Mate", fen: "3k4/8/3R1N2/8/8/8/8/3K4 w - - 0 1", desc: "White to move. Deliver mate with a Knight move giving double check.", solution: ["f6e8"], hint: "Move the Knight to e8 so both the Knight and Rook check the King at once." }
     ];
 
     const pieceSymbols = {
@@ -329,39 +333,30 @@
       "d4": "Queen's Pawn Opening",
       "c4": "English Opening",
       "Nf3": "Réti Opening",
-      "f4": "Bird's Opening",
       "e4 e5": "Open Game",
       "e4 e5 Nf3 Nc6 Bb5": "Ruy Lopez",
       "e4 e5 Nf3 Nc6 Bc4": "Italian Game",
-      "e4 e5 Nf3 Nc6 d4": "Scotch Game",
-      "e4 e5 Nf3 Nc6 Nc3 Nf6": "Four Knights Game",
-      "e4 e5 Nf3 Nf6": "Petrov's Defense",
       "e4 c5": "Sicilian Defense",
-      "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6": "Sicilian Defense: Najdorf Variation",
       "e4 e6": "French Defense",
       "e4 c6": "Caro-Kann Defense",
-      "e4 d5": "Scandinavian Defense",
-      "e4 g6": "Modern Defense",
-      "e4 Nf6": "Alekhine's Defense",
-      "d4 d5": "Closed Game",
-      "d4 d5 c4": "Queen's Gambit",
-      "d4 d5 c4 e6": "Queen's Gambit Declined",
-      "d4 d5 c4 c6": "Slav Defense",
-      "d4 Nf6": "Indian Defense",
-      "d4 Nf6 c4 e6 Nc3 Bb4": "Nimzo-Indian Defense",
-      "d4 Nf6 c4 g6 Nc3 d5": "Grünfeld Defense",
-      "d4 Nf6 c4 g6 Nc3 Bg7": "King's Indian Defense",
-      "d4 f5": "Dutch Defense"
+      "d4 d5 c4": "Queen's Gambit"
     };
 
     let game = new Chess();
     let currentMode = 'puzzle';
     let currentPuzzleIndex = 0;
     let selectedSquare = null;
+    let hintSquare = null;
     let palettePiece = 'P';
     let activeDemoPiece = 'n';
     let currentDifficulty = 'intermediate';
     let engineWorker = null;
+
+    // Online PeerJS states
+    let peer = null;
+    let conn = null;
+    let myColor = 'w';
+    let myPeerId = '';
 
     function initEngine() {
       if (window.Worker) {
@@ -384,7 +379,7 @@
               const promotion = moveStr.length > 4 ? moveStr[4] : 'q';
               game.move({ from, to, promotion });
               renderBoard();
-              updateAIStatus();
+              updateGameStatus();
             }
           }
         };
@@ -403,6 +398,7 @@
 
       const wrapper = document.getElementById('board-wrapper');
       selectedSquare = null;
+      hintSquare = null;
 
       if (mode === 'learn') {
         wrapper.style.display = 'none';
@@ -418,6 +414,10 @@
         game.reset();
         renderBoard();
         renderAIControls();
+      } else if (mode === 'online') {
+        game.reset();
+        renderBoard();
+        renderOnlineControls();
       } else if (mode === 'demo') {
         setDemoPiece(activeDemoPiece);
         renderDemoControls();
@@ -451,6 +451,7 @@
           square.dataset.square = squareName;
 
           if (selectedSquare === squareName) square.classList.add('selected');
+          if (hintSquare === squareName) square.classList.add('hint');
 
           const piece = boardState[r][c];
           if (piece) {
@@ -523,20 +524,28 @@
         return;
       }
 
+      if (currentMode === 'online' && game.turn() !== myColor) {
+        return;
+      }
+
       if (!selectedSquare) {
         const piece = game.get(square);
-        if (piece && ((currentMode === 'puzzle' || currentMode === 'ai') ? piece.color === game.turn() : true)) {
+        if (piece && ((currentMode === 'puzzle' || currentMode === 'ai' || currentMode === 'online') ? piece.color === game.turn() : true)) {
           selectedSquare = square;
           renderBoard();
         }
       } else {
         const move = game.move({ from: selectedSquare, to: square, promotion: 'q' });
         if (move) {
+          hintSquare = null;
           if (currentMode === 'puzzle') {
             checkPuzzleSolution(move);
           } else if (currentMode === 'ai' && !game.game_over()) {
-            updateAIStatus('Thinking...');
+            updateGameStatus('Thinking...');
             setTimeout(makeCatchfishMove, 50);
+          } else if (currentMode === 'online') {
+            if (conn) conn.send({ type: 'move', move });
+            updateGameStatus();
           }
         }
         selectedSquare = null;
@@ -549,8 +558,23 @@
       const puzzle = puzzles[index];
       game.load(puzzle.fen);
       selectedSquare = null;
+      hintSquare = null;
       renderBoard();
       renderPuzzleControls();
+    }
+
+    function showPuzzleHint() {
+      const puzzle = puzzles[currentPuzzleIndex];
+      const statusEl = document.getElementById('puzzle-status');
+      if (puzzle && puzzle.solution.length > 0) {
+        const solutionMove = puzzle.solution[0];
+        hintSquare = solutionMove.substring(0, 2);
+        renderBoard();
+        if (statusEl) {
+          statusEl.style.color = '#e67e22';
+          statusEl.textContent = `💡 Hint: ${puzzle.hint}`;
+        }
+      }
     }
 
     function checkPuzzleSolution(move) {
@@ -581,12 +605,12 @@
         const randomMove = moves[Math.floor(Math.random() * moves.length)];
         game.move(randomMove);
         renderBoard();
-        updateAIStatus();
+        updateGameStatus();
       }
     }
 
-    function updateAIStatus(customMsg) {
-      const statusEl = document.getElementById('ai-status');
+    function updateGameStatus(customMsg) {
+      const statusEl = document.getElementById('game-status');
       const openingEl = document.getElementById('opening-name');
       const pgnEl = document.getElementById('pgn-log');
 
@@ -607,12 +631,67 @@
       }
 
       if (game.in_checkmate()) {
-        statusEl.textContent = game.turn() === 'w' ? 'Checkmate! Computer wins.' : 'Checkmate! You win!';
+        statusEl.textContent = game.turn() === 'w' ? 'Checkmate! Black wins.' : 'Checkmate! White wins!';
       } else if (game.in_draw()) {
         statusEl.textContent = 'Game drawn!';
       } else {
-        statusEl.textContent = game.turn() === 'w' ? 'Your turn (White)' : "Catchfish Engine 18's turn";
+        if (currentMode === 'online') {
+          statusEl.textContent = game.turn() === myColor ? 'Your Turn' : "Opponent's Turn";
+        } else {
+          statusEl.textContent = game.turn() === 'w' ? 'Your turn (White)' : "Catchfish Engine 18's turn";
+        }
       }
+    }
+
+    function initPeer() {
+      if (!peer) {
+        peer = new Peer();
+        peer.on('open', (id) => {
+          myPeerId = id;
+          const hostIdEl = document.getElementById('host-id-display');
+          if (hostIdEl) hostIdEl.value = id;
+        });
+
+        peer.on('connection', (c) => {
+          conn = c;
+          myColor = 'w';
+          setupConnection();
+          const netStatus = document.getElementById('net-status');
+          if (netStatus) netStatus.textContent = '🟢 Opponent Connected! Playing as White.';
+        });
+      }
+    }
+
+    function hostOnlineGame() {
+      initPeer();
+      myColor = 'w';
+      game.reset();
+      renderBoard();
+      updateGameStatus();
+    }
+
+    function joinOnlineGame() {
+      initPeer();
+      const targetId = document.getElementById('join-peer-id').value.trim();
+      if (!targetId) return;
+      conn = peer.connect(targetId);
+      myColor = 'b';
+      setupConnection();
+    }
+
+    function setupConnection() {
+      conn.on('open', () => {
+        const netStatus = document.getElementById('net-status');
+        if (netStatus) netStatus.textContent = myColor === 'b' ? '🟢 Connected to Host! Playing as Black.' : '🟢 Client Connected!';
+      });
+
+      conn.on('data', (data) => {
+        if (data.type === 'move') {
+          game.move(data.move);
+          renderBoard();
+          updateGameStatus();
+        }
+      });
     }
 
     function renderPuzzleControls() {
@@ -629,7 +708,10 @@
         <h3>Puzzle ${currentPuzzleIndex + 1}: ${puzzle.name}</h3>
         <p>${puzzle.desc}</p>
         <div id="puzzle-status" class="status-box">Your turn (White)</div>
-        <button class="btn btn-secondary" style="margin-top:10px;" onclick="loadPuzzle(${currentPuzzleIndex})">🔄 Reset Puzzle</button>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="btn btn-warning" style="flex:1;" onclick="showPuzzleHint()">💡 Hint</button>
+          <button class="btn btn-secondary" style="flex:1;" onclick="loadPuzzle(${currentPuzzleIndex})">🔄 Reset</button>
+        </div>
       `;
     }
 
@@ -648,10 +730,30 @@
           <option value="master" ${currentDifficulty === 'master' ? 'selected' : ''}>Master</option>
           <option value="grandmaster" ${currentDifficulty === 'grandmaster' ? 'selected' : ''}>GrandMaster</option>
         </select>
-        <div id="ai-status" class="status-box">Your turn (White)</div>
+        <div id="game-status" class="status-box">Your turn (White)</div>
         <div id="opening-name" class="opening-box">Opening: Standard Opening / Custom</div>
         <div id="pgn-log" class="pgn-container">1. ...</div>
-        <button class="btn btn-danger" style="margin-top:10px;" onclick="game.reset(); renderBoard(); updateAIStatus();">Restart Game</button>
+        <button class="btn btn-danger" style="margin-top:10px;" onclick="game.reset(); renderBoard(); updateGameStatus();">Restart Game</button>
+      `;
+    }
+
+    function renderOnlineControls() {
+      const controls = document.getElementById('controls-panel');
+      controls.innerHTML = `
+        <h3>Play Online Multiplayer</h3>
+        <div id="net-status" class="status-box" style="margin-bottom:10px;">Click Host or enter ID to Join</div>
+        <div style="margin-bottom:10px;">
+          <button class="btn" style="width:100%;" onclick="hostOnlineGame()">Create / Host Match</button>
+          <input type="text" id="host-id-display" class="online-input" style="margin-top:6px;" readonly placeholder="Your Game ID will appear here">
+        </div>
+        <hr style="border:0; border-top:1px solid #ddd; margin:10px 0;">
+        <div>
+          <input type="text" id="join-peer-id" class="online-input" placeholder="Paste Opponent Game ID">
+          <button class="btn btn-secondary" style="width:100%;" onclick="joinOnlineGame()">Join Match</button>
+        </div>
+        <div id="game-status" class="status-box" style="margin-top:10px;">Connecting...</div>
+        <div id="opening-name" class="opening-box">Opening: Standard Opening / Custom</div>
+        <div id="pgn-log" class="pgn-container">1. ...</div>
       `;
     }
 
