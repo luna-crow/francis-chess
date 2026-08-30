@@ -1,1 +1,1 @@
-# francis-chess
+A alfa version of webpage. (incomplete design)
