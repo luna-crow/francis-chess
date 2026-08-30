@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Francis Chess - Interactive Rules, Sandbox & AI</title>
+  <title>Francis Chess - Interactive Puzzles, Rules & AI</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
   <style>
     :root {
@@ -47,15 +47,15 @@
       justify-content: center;
       margin-bottom: 15px;
       width: 100%;
-      max-width: 540px;
+      max-width: 380px;
     }
 
     .tab-btn {
       background-color: var(--card);
       border: 1px solid #dee2e6;
       border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 0.85rem;
+      padding: 6px 10px;
+      font-size: 0.8rem;
       font-weight: 600;
       color: var(--primary);
       cursor: pointer;
@@ -72,9 +72,9 @@
     #board-wrapper {
       position: relative;
       width: 100%;
-      max-width: 540px;
+      max-width: 380px;
       background: var(--card);
-      padding: 10px;
+      padding: 8px;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       box-sizing: border-box;
@@ -82,40 +82,38 @@
 
     .board-container {
       display: grid;
-      grid-template-columns: 24px 1fr;
-      grid-template-rows: 1fr 24px;
+      grid-template-columns: 18px 1fr;
+      grid-template-rows: 1fr 18px;
       width: 100%;
-      box-sizing: border-box;
     }
 
     .ranks-labels {
-      display: grid;
-      grid-template-rows: repeat(8, 1fr);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
       align-items: center;
-      justify-items: center;
       font-weight: bold;
       color: var(--primary);
-      font-size: 0.85rem;
+      font-size: 0.75rem;
     }
 
     .files-labels {
       grid-column: 2;
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
+      display: flex;
+      justify-content: space-around;
       align-items: center;
-      justify-items: center;
       font-weight: bold;
       color: var(--primary);
-      font-size: 0.85rem;
-      padding-top: 4px;
+      font-size: 0.75rem;
+      padding-top: 2px;
     }
 
     .board {
       grid-column: 2;
       grid-row: 1;
       display: grid;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
-      grid-template-rows: repeat(8, minmax(0, 1fr));
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
       width: 100%;
       aspect-ratio: 1 / 1;
       border: 2px solid #333;
@@ -125,15 +123,16 @@
     }
 
     .square {
+      position: relative;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: min(6.5vw, 2.2rem);
-      line-height: 1;
+      font-size: 1.6rem;
       cursor: pointer;
       user-select: none;
       width: 100%;
       height: 100%;
+      aspect-ratio: 1 / 1;
       box-sizing: border-box;
     }
 
@@ -141,43 +140,69 @@
     .square.dark { background-color: var(--dark-sq); }
     .square.selected { background-color: #baca44 !important; }
 
+    .legal-dot {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background-color: rgba(0, 0, 0, 0.25);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
     .controls {
       width: 100%;
-      max-width: 540px;
+      max-width: 380px;
       margin-top: 15px;
       background: var(--card);
-      padding: 15px;
+      padding: 12px;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       box-sizing: border-box;
+    }
+
+    .puzzle-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
     }
 
     .btn {
       background-color: var(--primary);
       color: white;
       border: none;
-      padding: 8px 12px;
+      padding: 8px 10px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
 
     .btn:hover { opacity: 0.9; }
     .btn-secondary { background-color: #6c757d; }
     .btn-danger { background-color: var(--accent); }
 
+    .status-box {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 6px;
+      background: #e9ecef;
+      font-size: 0.85rem;
+      text-align: center;
+      font-weight: 500;
+    }
+
     .piece-palette {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
       justify-content: center;
       margin-top: 10px;
     }
 
     .palette-piece {
-      font-size: 1.8rem;
-      padding: 4px 8px;
+      font-size: 1.5rem;
+      padding: 2px 6px;
       background: #e9ecef;
       border-radius: 6px;
       cursor: pointer;
@@ -190,19 +215,20 @@
 
     .guide-section {
       text-align: left;
-      line-height: 1.5;
+      line-height: 1.4;
+      font-size: 0.85rem;
     }
 
     .guide-section h3 {
       color: var(--primary);
-      margin-top: 15px;
+      margin-top: 12px;
       margin-bottom: 5px;
       border-bottom: 2px solid #e9ecef;
       padding-bottom: 4px;
     }
 
     .guide-item {
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .guide-item strong {
@@ -213,10 +239,11 @@
 <body>
 
   <h1>Francis Chess</h1>
-  <div class="subtitle">Custom Sandbox & Computer AI</div>
+  <div class="subtitle">Interactive Puzzles, Custom Sandbox & Computer AI</div>
 
   <div class="nav-tabs">
-    <button class="tab-btn active" onclick="switchMode('ai', event)">🤖 Play vs Computer</button>
+    <button class="tab-btn active" onclick="switchMode('puzzle', event)">🧩 Puzzles Mode</button>
+    <button class="tab-btn" onclick="switchMode('ai', event)">🤖 Play vs Computer</button>
     <button class="tab-btn" onclick="switchMode('demo', event)">♟️ Movement Demo</button>
     <button class="tab-btn" onclick="switchMode('sandbox', event)">🛠️ Sandbox Builder</button>
     <button class="tab-btn" onclick="switchMode('learn', event)">📖 Learn Chess</button>
@@ -236,21 +263,37 @@
     </div>
   </div>
 
-  <div class="controls" id="controls-panel"></div>
+  <div class="controls" id="controls-panel">
+    <!-- Dynamic controls populate here -->
+  </div>
 
   <script>
+    const puzzles = [
+      { name: "Back-Rank Mate", fen: "6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1", desc: "White to move. Deliver checkmate in 1 move with your Rook.", solution: ["a1a8"] },
+      { name: "Queen Skewer", fen: "3k4/8/8/3q4/8/8/8/3R2K1 w - - 0 1", desc: "White to move. Skewer the King and win the Queen.", solution: ["d1d5"] },
+      { name: "Smothered Mate", fen: "6rk/6pp/7N/8/8/8/8/7K w - - 0 1", desc: "White to move. Deliver checkmate using the Knight.", solution: ["h6f7"] },
+      { name: "Scholar's Mate Finish", fen: "r1bqkb1r/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1", desc: "White to move. Deliver checkmate in 1 move.", solution: ["f3f7"] },
+      { name: "Discovered Check", fen: "3k4/8/8/8/3B4/8/3R4/3K4 w - - 0 1", desc: "White to move. Move the Bishop to reveal check from the Rook.", solution: ["d4b6"] },
+      { name: "Rook Checkmate", fen: "4k3/8/4K3/8/8/8/8/7R w - - 0 1", desc: "White to move. Deliver back-rank checkmate with the Rook.", solution: ["h1h8"] },
+      { name: "Support Mate", fen: "k7/8/1K6/8/8/8/8/7Q w - - 0 1", desc: "White to move. Deliver checkmate supported by the King.", solution: ["h1a1"] },
+      { name: "Pawn Promotion Check", fen: "4k3/3P4/8/8/8/8/8/4K3 w - - 0 1", desc: "White to move. Promote the pawn and give check.", solution: ["d7d8q"] },
+      { name: "Double Check Mate", fen: "3k4/8/3R1N2/8/8/8/8/3K4 w - - 0 1", desc: "White to move. Deliver mate with a Knight move giving double check.", solution: ["f6e8"] }
+    ];
+
     const pieceSymbols = {
       'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
       'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
     };
 
     let game = new Chess();
-    let currentMode = 'ai';
+    let currentMode = 'puzzle';
+    let currentPuzzleIndex = 0;
     let selectedSquare = null;
     let palettePiece = 'P';
+    let activeDemoPiece = 'n';
 
     function init() {
-      switchMode('ai');
+      loadPuzzle(0);
     }
 
     function switchMode(mode, evt) {
@@ -269,14 +312,14 @@
 
       wrapper.style.display = 'block';
 
-      if (mode === 'ai') {
+      if (mode === 'puzzle') {
+        loadPuzzle(currentPuzzleIndex);
+      } else if (mode === 'ai') {
         game.reset();
         renderBoard();
         renderAIControls();
       } else if (mode === 'demo') {
-        game.clear();
-        game.put({ type: 'n', color: 'w' }, 'd4');
-        renderBoard();
+        setDemoPiece(activeDemoPiece);
         renderDemoControls();
       } else if (mode === 'sandbox') {
         game.clear();
@@ -289,6 +332,16 @@
       const boardElement = document.getElementById('board');
       boardElement.innerHTML = '';
       const boardState = game.board();
+
+      let legalMoves = [];
+      if (selectedSquare) {
+        legalMoves = game.moves({ square: selectedSquare, verbose: true }).map(m => m.to);
+      } else if (currentMode === 'demo') {
+        const demoSquare = findDemoPieceSquare();
+        if (demoSquare) {
+          legalMoves = game.moves({ square: demoSquare, verbose: true }).map(m => m.to);
+        }
+      }
 
       for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
@@ -305,10 +358,28 @@
             square.textContent = pieceSymbols[pieceChar] || '';
           }
 
+          if (legalMoves.includes(squareName)) {
+            const dot = document.createElement('div');
+            dot.className = 'legal-dot';
+            square.appendChild(dot);
+          }
+
           square.onclick = () => handleSquareClick(squareName);
           boardElement.appendChild(square);
         }
       }
+    }
+
+    function findDemoPieceSquare() {
+      const boardState = game.board();
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          if (boardState[r][c]) {
+            return String.fromCharCode(97 + c) + (8 - r);
+          }
+        }
+      }
+      return null;
     }
 
     function handleSquareClick(square) {
@@ -322,22 +393,61 @@
         return;
       }
 
+      if (currentMode === 'demo') {
+        const currentSquare = findDemoPieceSquare();
+        if (currentSquare && currentSquare !== square) {
+          const move = game.move({ from: currentSquare, to: square, promotion: 'q' });
+          if (!move) {
+            const piece = game.get(currentSquare);
+            game.clear();
+            if (piece) game.put(piece, square);
+          }
+        }
+        renderBoard();
+        return;
+      }
+
       if (!selectedSquare) {
         const piece = game.get(square);
-        if (piece && (currentMode === 'ai' ? piece.color === game.turn() : true)) {
+        if (piece && ((currentMode === 'puzzle' || currentMode === 'ai') ? piece.color === game.turn() : true)) {
           selectedSquare = square;
           renderBoard();
         }
       } else {
-        const moveObj = { from: selectedSquare, to: square, promotion: 'q' };
-        const move = game.move(moveObj);
+        const move = game.move({ from: selectedSquare, to: square, promotion: 'q' });
         if (move) {
-          if (currentMode === 'ai' && !game.game_over()) {
+          if (currentMode === 'puzzle') {
+            checkPuzzleSolution(move);
+          } else if (currentMode === 'ai' && !game.game_over()) {
             setTimeout(makeAIMove, 400);
           }
         }
         selectedSquare = null;
         renderBoard();
+      }
+    }
+
+    function loadPuzzle(index) {
+      currentPuzzleIndex = index;
+      const puzzle = puzzles[index];
+      game.load(puzzle.fen);
+      selectedSquare = null;
+      renderBoard();
+      renderPuzzleControls();
+    }
+
+    function checkPuzzleSolution(move) {
+      const puzzle = puzzles[currentPuzzleIndex];
+      const moveStr = move.from + move.to;
+      const statusEl = document.getElementById('puzzle-status');
+
+      if (puzzle.solution.includes(moveStr) || game.in_checkmate()) {
+        statusEl.style.color = '#28a745';
+        statusEl.textContent = '🎉 Correct! Puzzle Solved!';
+      } else {
+        statusEl.style.color = '#dc3545';
+        statusEl.textContent = '❌ Incorrect move. Try again!';
+        setTimeout(() => loadPuzzle(currentPuzzleIndex), 1000);
       }
     }
 
@@ -347,6 +457,24 @@
       const randomMove = moves[Math.floor(Math.random() * moves.length)];
       game.move(randomMove);
       renderBoard();
+    }
+
+    function renderPuzzleControls() {
+      const puzzle = puzzles[currentPuzzleIndex];
+      const controls = document.getElementById('controls-panel');
+      controls.innerHTML = `
+        <div class="puzzle-grid">
+          ${puzzles.map((p, i) => `
+            <button class="btn ${i === currentPuzzleIndex ? '' : 'btn-secondary'}" onclick="loadPuzzle(${i})">
+              P${i + 1}
+            </button>
+          `).join('')}
+        </div>
+        <h3>Puzzle ${currentPuzzleIndex + 1}: ${puzzle.name}</h3>
+        <p>${puzzle.desc}</p>
+        <div id="puzzle-status" class="status-box">Your turn (White)</div>
+        <button class="btn btn-secondary" style="margin-top:10px;" onclick="loadPuzzle(${currentPuzzleIndex})">🔄 Reset Puzzle</button>
+      `;
     }
 
     function renderAIControls() {
@@ -360,9 +488,9 @@
 
     function renderDemoControls() {
       const pieces = [
-        { name: 'Knight', char: 'N' }, { name: 'Bishop', char: 'B' },
-        { name: 'Rook', char: 'R' }, { name: 'Queen', char: 'Q' },
-        { name: 'King', char: 'K' }, { name: 'Pawn', char: 'P' }
+        { name: 'Knight', char: 'n' }, { name: 'Bishop', char: 'b' },
+        { name: 'Rook', char: 'r' }, { name: 'Queen', char: 'q' },
+        { name: 'King', char: 'k' }, { name: 'Pawn', char: 'p' }
       ];
       const controls = document.getElementById('controls-panel');
       controls.innerHTML = `
@@ -370,16 +498,19 @@
         <p>Select a piece type to demonstrate legal moves on an empty board:</p>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
           ${pieces.map(p => `
-            <button class="btn btn-secondary" onclick="setDemoPiece('${p.char.toLowerCase()}')">${p.name}</button>
+            <button class="btn ${activeDemoPiece === p.char ? '' : 'btn-secondary'}" onclick="setDemoPiece('${p.char}')">${p.name}</button>
           `).join('')}
         </div>
       `;
     }
 
     function setDemoPiece(type) {
+      activeDemoPiece = type;
       game.clear();
-      game.put({ type, color: 'w' }, 'd4');
+      const targetSquare = type === 'p' ? 'd2' : 'd4';
+      game.put({ type, color: 'w' }, targetSquare);
       renderBoard();
+      renderDemoControls();
     }
 
     function renderSandboxControls() {
