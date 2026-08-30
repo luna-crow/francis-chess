@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Francis Chess - Interactive Puzzles, Sandbox & Movement Guide</title>
+  <title>Francis Chess - Interactive Puzzles, Sandbox & vs Computer</title>
+  
+  <!-- Chess.js library for rule validation and move generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
   <style>
     :root {
       --primary: #1e3a8a;
@@ -135,18 +139,12 @@
       position: absolute;
     }
 
-    /* Realistic 3D Piece Styling */
     .piece-svg {
       width: 90%;
       height: 90%;
       pointer-events: none;
       z-index: 2;
       filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.45));
-      transition: transform 0.1s ease;
-    }
-
-    .square:hover .piece-svg {
-      transform: scale(1.06);
     }
 
     .status-box {
@@ -206,36 +204,6 @@
       border-radius: 6px;
       font-size: 0.9rem;
     }
-
-    .section-title {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: var(--primary);
-      margin-top: 2rem;
-      margin-bottom: 1rem;
-      border-bottom: 2px solid #e2e8f0;
-      padding-bottom: 0.5rem;
-    }
-
-    .rules-grid, .piece-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1rem;
-    }
-
-    .rule-card, .piece-card {
-      background: var(--card-bg);
-      padding: 1rem;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-    }
-
-    .piece-card { cursor: pointer; transition: transform 0.15s, border-color 0.15s; }
-    .piece-card:hover { transform: translateY(-2px); border-color: var(--accent); }
-    .piece-card h3 { margin: 0 0 0.5rem 0; color: var(--accent); font-size: 1.1rem; }
-    .piece-card p { margin: 0; font-size: 0.88rem; color: #475569; line-height: 1.4; }
-    .rule-card h3 { margin: 0 0 0.5rem 0; color: var(--primary); font-size: 1.1rem; }
-    .rule-card p { margin: 0; font-size: 0.88rem; color: #475569; line-height: 1.4; }
   </style>
 </head>
 <body>
@@ -243,13 +211,14 @@
   <div class="wrapper">
     <header>
       <h1>Francis Chess</h1>
-      <p class="subtitle">Interactive Puzzles, Custom Sandbox &amp; Movement Demos</p>
+      <p class="subtitle">Interactive Puzzles, Custom Sandbox &amp; Computer AI</p>
     </header>
 
     <div class="tabs">
       <button class="tab-btn active" onclick="switchMode('puzzles')">🎯 Puzzles Mode</button>
-      <button class="tab-btn" onclick="switchMode('demo')">♟️ Piece Movement Demo</button>
-      <button class="tab-btn" onclick="switchMode('sandbox')">🛠️ Sandbox &amp; Piece Builder</button>
+      <button class="tab-btn" onclick="switchMode('bot')">🤖 Play vs Computer</button>
+      <button class="tab-btn" onclick="switchMode('demo')">♟️ Movement Demo</button>
+      <button class="tab-btn" onclick="switchMode('sandbox')">🛠️ Sandbox Builder</button>
     </div>
 
     <div class="grid-layout">
@@ -268,27 +237,35 @@
       </div>
 
       <div class="card">
+        <!-- Puzzles Panel -->
         <div id="puzzle-controls">
           <div id="status" class="status-box">Puzzle 1: Back-Rank Mate</div>
-          <p id="description">White to move. Deliver checkmate in 1 move with your Rook. (Click piece, then click destination square)</p>
-
+          <p id="description">White to move. Deliver checkmate in 1 move with your Rook.</p>
           <div class="btn-group">
             <button onclick="loadPuzzle(0)">Puzzle 1</button>
             <button onclick="loadPuzzle(1)">Puzzle 2</button>
             <button onclick="loadPuzzle(2)">Puzzle 3</button>
           </div>
-
           <div class="btn-group">
             <button class="btn-sec" onclick="toggleHint()">💡 Hint</button>
             <button class="btn-sec" onclick="resetCurrentPuzzle()">🔄 Reset</button>
           </div>
-
           <div id="hint-text" class="hint-box"></div>
         </div>
 
+        <!-- Computer Bot Controls Panel -->
+        <div id="bot-controls" style="display:none;">
+          <div id="bot-status" class="status-box">Your Turn (White)</div>
+          <p>Play a full game of chess against the computer opponent!</p>
+          <div class="btn-group">
+            <button class="btn-sec" onclick="startNewBotGame()">🔄 Start New Game</button>
+          </div>
+        </div>
+
+        <!-- Demo Panel -->
         <div id="demo-controls" style="display:none;">
-          <div class="status-box" id="demo-title">Select a Piece Below</div>
-          <p id="demo-desc">Click any piece card below to display its legal movement pattern on the board above!</p>
+          <div class="status-box" id="demo-title">Select a Piece</div>
+          <p id="demo-desc">Click any piece below to view legal moves.</p>
           <div class="btn-group">
             <button onclick="showPieceDemo('P')">Pawn</button>
             <button onclick="showPieceDemo('N')">Knight</button>
@@ -299,87 +276,35 @@
           </div>
         </div>
 
+        <!-- Sandbox Panel -->
         <div id="sandbox-controls" style="display:none;">
           <div class="status-box">Custom Board Builder</div>
-          <p>Select a piece below, then click any square on the board to place or remove it!</p>
-
+          <p>Select a piece below to place or remove it on the board.</p>
           <div class="btn-group">
             <button class="btn-sec" onclick="setupStandardBoard()">♟️ Standard Setup</button>
-            <button class="btn-danger" onclick="clearBoard()">🗑️ Clear All Pieces</button>
+            <button class="btn-danger" onclick="clearBoard()">🗑️ Clear Board</button>
           </div>
-
-          <div style="font-weight:600; margin-top:0.5rem; font-size:0.9rem;">Piece Palette (Select to Place):</div>
           <div class="palette" id="white-palette"></div>
           <div class="palette" id="black-palette" style="margin-top:0.5rem; padding-top:0;"></div>
         </div>
       </div>
     </div>
-
-    <div class="section-title">Piece Movement Rules (Click to Preview)</div>
-    <div class="piece-grid">
-      <div class="piece-card" onclick="switchMode('demo'); showPieceDemo('P');">
-        <h3>Pawn (1 Pt)</h3>
-        <p>Moves forward 1 square (or 2 on first move). Captures 1 square diagonally forward.</p>
-      </div>
-      <div class="piece-card" onclick="switchMode('demo'); showPieceDemo('N');">
-        <h3>Knight (3 Pts)</h3>
-        <p>Moves in an "L-shape" (2 by 1). The only piece that can jump over other pieces.</p>
-      </div>
-      <div class="piece-card" onclick="switchMode('demo'); showPieceDemo('B');">
-        <h3>Bishop (3 Pts)</h3>
-        <p>Moves diagonally any distance across squares of its starting color.</p>
-      </div>
-      <div class="piece-card" onclick="switchMode('demo'); showPieceDemo('R');">
-        <h3>Rook (5 Pts)</h3>
-        <p>Moves horizontally or vertically any distance in straight lines.</p>
-      </div>
-      <div class="piece-card" onclick="switchMode('demo'); showPieceDemo('Q');">
-        <h3>Queen (9 Pts)</h3>
-        <p>Combines Rook and Bishop powers. Moves straight or diagonally in any direction.</p>
-      </div>
-      <div class="piece-card" onclick="switchMode('demo'); showPieceDemo('K');">
-        <h3>King (Infinite)</h3>
-        <p>Moves 1 square in any direction. Protect the King to avoid checkmate!</p>
-      </div>
-    </div>
-
-    <div class="section-title">Special Rules &amp; Endgames</div>
-    <div class="rules-grid">
-      <div class="rule-card">
-        <h3>Check</h3>
-        <p>Your King is under direct attack by an enemy piece. You must immediately resolve the check by escaping, blocking, or capturing the attacker.</p>
-      </div>
-      <div class="rule-card">
-        <h3>Checkmate</h3>
-        <p>The King is in check and has no legal moves to escape. The game ends immediately and the player delivering mate wins.</p>
-      </div>
-      <div class="rule-card">
-        <h3>En Passant</h3>
-        <p>When an opponent moves a pawn 2 squares forward, you may capture it diagonally with your pawn on the next turn as if it moved only 1 square.</p>
-      </div>
-      <div class="rule-card">
-        <h3>Pawn Promotion</h3>
-        <p>Reaching the opposite end of the board allows a pawn to instantly promote into a Queen, Rook, Bishop, or Knight.</p>
-      </div>
-    </div>
   </div>
 
   <script>
-    // Detailed Realistic Staunton SVG Vectors with Realistic Gradients & Shading
     const SVG_PIECES = {
-      'R': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M9 39h27v-3H9v3zm3-3h21v-4H12v4zm0-5h21l-2-19H14l-2 19zm15-22h3v-4h-3v4zm-7 0h3v-4h-3v4zm-7 0h3v-4h-3v4z" fill="url(#wG)" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      'K': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M22.5 11.63V6M20 8h5M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5M11.5 37h22v-3h-22v3zm2-3h18v-3h-18v3zm0-3c0-3 2.5-6 5.5-8h7c3 2 5.5 5 5.5 8h-18z" fill="url(#wG)" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      'Q': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M9 26c1.5 2 3 4 5 5h17c2-1 3.5-3 5-5l-4-12-7 9-2.5-11L20 23l-7-9-4 12zm0 11h27v-3H9v3z" fill="url(#wG)" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      'B': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><g fill="url(#wG)" stroke="#222" stroke-width="1.5" stroke-linejoin="round"><path d="M9 36h27v-2H9v2zm3-2h21v-3H12v3zm1.5-3h18l1-4H12.5l1 4z"/><path d="M22.5 9c-2.5 0-4 2-4 4 0 2 2.5 4 4 4s4-2 4-4c0-2-1.5-4-4-4zm0 8c-3 0-6 3-6 7 0 3 2 6 6 9 4-3 6-6 6-9 0-4-3-7-6-7z"/></g></svg>`,
-      'N': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M22 10C17.5 10 14 12.5 14 17c0 3 2.5 5 3.5 8 1 3 0 6-3 8.5h17.5c1-2 1-5 0-7.5-1-2.5-3-4.5-3-7.5 0-4.5-2.5-9-7-9z" fill="url(#wG)" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      'P': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 10.97h23c0-5.42-4.41-9.91-7.41-10.97C28.06 24.84 29 23.03 29 21c0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z" fill="url(#wG)" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      
-      'k': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M22.5 11.63V6M20 8h5M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5M11.5 37h22v-3h-22v3zm2-3h18v-3h-18v3zm0-3c0-3 2.5-6 5.5-8h7c3 2 5.5 5 5.5 8h-18z" fill="url(#bG)" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      'q': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M9 26c1.5 2 3 4 5 5h17c2-1 3.5-3 5-5l-4-12-7 9-2.5-11L20 23l-7-9-4 12zm0 11h27v-3H9v3z" fill="url(#bG)" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      'r': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M9 39h27v-3H9v3zm3-3h21v-4H12v4zm0-5h21l-2-19H14l-2 19zm15-22h3v-4h-3v4zm-7 0h3v-4h-3v4zm-7 0h3v-4h-3v4z" fill="url(#bG)" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      'b': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><g fill="url(#bG)" stroke="#000" stroke-width="1.5" stroke-linejoin="round"><path d="M9 36h27v-2H9v2zm3-2h21v-3H12v3zm1.5-3h18l1-4H12.5l1 4z"/><path d="M22.5 9c-2.5 0-4 2-4 4 0 2 2.5 4 4 4s4-2 4-4c0-2-1.5-4-4-4zm0 8c-3 0-6 3-6 7 0 3 2 6 6 9 4-3 6-6 6-9 0-4-3-7-6-7z"/></g></svg>`,
-      'n': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M22 10C17.5 10 14 12.5 14 17c0 3 2.5 5 3.5 8 1 3 0 6-3 8.5h17.5c1-2 1-5 0-7.5-1-2.5-3-4.5-3-7.5 0-4.5-2.5-9-7-9z" fill="url(#bG)" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-      'p': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 10.97h23c0-5.42-4.41-9.91-7.41-10.97C28.06 24.84 29 23.03 29 21c0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z" fill="url(#bG)" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>`
+      'R': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M9 39h27v-3H9v3zm3-3h21v-4H12v4zm0-5h21l-2-19H14l-2 19zm15-22h3v-4h-3v4zm-7 0h3v-4h-3v4zm-7 0h3v-4h-3v4z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
+      'K': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M22.5 11.63V6M20 8h5M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5M11.5 37h22v-3h-22v3zm2-3h18v-3h-18v3zm0-3c0-3 2.5-6 5.5-8h7c3 2 5.5 5 5.5 8h-18z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
+      'Q': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M9 26c1.5 2 3 4 5 5h17c2-1 3.5-3 5-5l-4-12-7 9-2.5-11L20 23l-7-9-4 12zm0 11h27v-3H9v3z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
+      'B': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><g fill="url(#wG)" stroke="#222" stroke-width="1.5"><path d="M9 36h27v-2H9v2zm3-2h21v-3H12v3zm1.5-3h18l1-4H12.5l1 4z"/><path d="M22.5 9c-2.5 0-4 2-4 4 0 2 2.5 4 4 4s4-2 4-4c0-2-1.5-4-4-4zm0 8c-3 0-6 3-6 7 0 3 2 6 6 9 4-3 6-6 6-9 0-4-3-7-6-7z"/></g></svg>`,
+      'N': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M22 10C17.5 10 14 12.5 14 17c0 3 2.5 5 3.5 8 1 3 0 6-3 8.5h17.5c1-2 1-5 0-7.5-1-2.5-3-4.5-3-7.5 0-4.5-2.5-9-7-9z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
+      'P': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="wG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#ededed"/><stop offset="100%" stop-color="#d0d0d0"/></linearGradient></defs><path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 10.97h23c0-5.42-4.41-9.91-7.41-10.97C28.06 24.84 29 23.03 29 21c0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z" fill="url(#wG)" stroke="#222" stroke-width="1.5"/></svg>`,
+      'k': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M22.5 11.63V6M20 8h5M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5M11.5 37h22v-3h-22v3zm2-3h18v-3h-18v3zm0-3c0-3 2.5-6 5.5-8h7c3 2 5.5 5 5.5 8h-18z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`,
+      'q': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M9 26c1.5 2 3 4 5 5h17c2-1 3.5-3 5-5l-4-12-7 9-2.5-11L20 23l-7-9-4 12zm0 11h27v-3H9v3z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`,
+      'r': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M9 39h27v-3H9v3zm3-3h21v-4H12v4zm0-5h21l-2-19H14l-2 19zm15-22h3v-4h-3v4zm-7 0h3v-4h-3v4zm-7 0h3v-4h-3v4z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`,
+      'b': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><g fill="url(#bG)" stroke="#000" stroke-width="1.5"><path d="M9 36h27v-2H9v2zm3-2h21v-3H12v3zm1.5-3h18l1-4H12.5l1 4z"/><path d="M22.5 9c-2.5 0-4 2-4 4 0 2 2.5 4 4 4s4-2 4-4c0-2-1.5-4-4-4zm0 8c-3 0-6 3-6 7 0 3 2 6 6 9 4-3 6-6 6-9 0-4-3-7-6-7z"/></g></svg>`,
+      'n': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M22 10C17.5 10 14 12.5 14 17c0 3 2.5 5 3.5 8 1 3 0 6-3 8.5h17.5c1-2 1-5 0-7.5-1-2.5-3-4.5-3-7.5 0-4.5-2.5-9-7-9z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`,
+      'p': `<svg class="piece-svg" viewBox="0 0 45 45"><defs><linearGradient id="bG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a4a4a"/><stop offset="70%" stop-color="#222222"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 10.97h23c0-5.42-4.41-9.91-7.41-10.97C28.06 24.84 29 23.03 29 21c0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z" fill="url(#bG)" stroke="#000" stroke-width="1.5"/></svg>`
     };
 
     const puzzles = [
@@ -414,25 +339,10 @@
           ["", "", "", "", "", "", "", ""],
           ["", "", "", "", "K", "", "", ""]
         ]
-      },
-      {
-        title: "Puzzle 3: Queen Skewer",
-        description: "White to move. Attack the King on c3 to win the Black Queen behind it.",
-        hint: "Move your White Queen from a1 to h8.",
-        solution: { from: "a1", to: "h8" },
-        grid: [
-          ["", "", "", "", "", "", "", "q"],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["", "", "k", "", "", "", "", ""],
-          ["", "", "", "", "", "", "", ""],
-          ["Q", "", "", "", "K", "", "", ""]
-        ]
       }
     ];
 
+    let chessGame = new Chess();
     let currentMode = 'puzzles';
     let currentIdx = 0;
     let selectedSquare = null;
@@ -472,6 +382,8 @@
     function handleSquareClick(sqName, r, c) {
       if (currentMode === 'puzzles') {
         handlePuzzleClick(sqName, r, c);
+      } else if (currentMode === 'bot') {
+        handleBotClick(sqName, r, c);
       } else if (currentMode === 'sandbox') {
         handleSandboxClick(r, c);
       }
@@ -479,7 +391,6 @@
 
     function handlePuzzleClick(sqName, r, c) {
       const p = puzzles[currentIdx];
-      
       if (!selectedSquare) {
         const piece = boardState[r][c];
         if (piece && piece === piece.toUpperCase()) {
@@ -497,7 +408,6 @@
 
           document.getElementById("status").innerText = "🎉 Correct! Great move.";
           document.getElementById("status").style.background = "#dcfce7";
-          document.getElementById("hint-text").style.display = "none";
         } else {
           document.getElementById("status").innerText = "❌ Incorrect move. Try again!";
           document.getElementById("status").style.background = "#fee2e2";
@@ -505,6 +415,80 @@
         selectedSquare = null;
         renderBoard();
       }
+    }
+
+    /* Computer Opponent Game Logic */
+    function handleBotClick(sqName, r, c) {
+      if (chessGame.turn() !== 'w' || chessGame.game_over()) return;
+
+      if (!selectedSquare) {
+        const legalMoves = chessGame.moves({ square: sqName, verbose: true });
+        if (legalMoves.length > 0) {
+          selectedSquare = sqName;
+          highlightMoves = legalMoves.map(m => m.to);
+          renderBoard();
+        }
+      } else {
+        const move = chessGame.move({ from: selectedSquare, to: sqName, promotion: 'q' });
+        selectedSquare = null;
+        highlightMoves = [];
+
+        if (move) {
+          syncBoardWithChessJs();
+          renderBoard();
+          checkBotGameStatus();
+
+          if (!chessGame.game_over()) {
+            document.getElementById("bot-status").innerText = "🤖 Computer is thinking...";
+            setTimeout(makeComputerMove, 400);
+          }
+        } else {
+          renderBoard();
+        }
+      }
+    }
+
+    function makeComputerMove() {
+      const moves = chessGame.moves();
+      if (moves.length === 0) return;
+
+      // Select a move (prefers captures, fallback to legal moves)
+      const captureMoves = chessGame.moves({ verbose: true }).filter(m => m.captured);
+      const chosenMove = captureMoves.length > 0 
+        ? captureMoves[Math.floor(Math.random() * captureMoves.length)]
+        : moves[Math.floor(Math.random() * moves.length)];
+
+      chessGame.move(chosenMove);
+      syncBoardWithChessJs();
+      renderBoard();
+      checkBotGameStatus();
+    }
+
+    function checkBotGameStatus() {
+      const statusEl = document.getElementById("bot-status");
+      if (chessGame.in_checkmate()) {
+        statusEl.innerText = chessGame.turn() === 'b' ? "🎉 Checkmate! You Win!" : "💀 Checkmate! Computer Wins!";
+      } else if (chessGame.in_draw()) {
+        statusEl.innerText = "🤝 Game Draw!";
+      } else {
+        statusEl.innerText = chessGame.turn() === 'w' ? "Your Turn (White)" : "🤖 Computer's Turn";
+      }
+    }
+
+    function syncBoardWithChessJs() {
+      const asciiBoard = chessGame.board();
+      boardState = asciiBoard.map(row => 
+        row.map(sq => (sq ? (sq.color === 'w' ? sq.type.toUpperCase() : sq.type) : ""))
+      );
+    }
+
+    function startNewBotGame() {
+      chessGame.reset();
+      selectedSquare = null;
+      highlightMoves = [];
+      syncBoardWithChessJs();
+      renderBoard();
+      document.getElementById("bot-status").innerText = "Your Turn (White)";
     }
 
     function handleSandboxClick(r, c) {
@@ -523,15 +507,19 @@
 
       const tabs = document.querySelectorAll('.tab-btn');
       tabs[0].classList.toggle('active', mode === 'puzzles');
-      tabs[1].classList.toggle('active', mode === 'demo');
-      tabs[2].classList.toggle('active', mode === 'sandbox');
+      tabs[1].classList.toggle('active', mode === 'bot');
+      tabs[2].classList.toggle('active', mode === 'demo');
+      tabs[3].classList.toggle('active', mode === 'sandbox');
 
       document.getElementById('puzzle-controls').style.display = mode === 'puzzles' ? 'block' : 'none';
+      document.getElementById('bot-controls').style.display = mode === 'bot' ? 'block' : 'none';
       document.getElementById('demo-controls').style.display = mode === 'demo' ? 'block' : 'none';
       document.getElementById('sandbox-controls').style.display = mode === 'sandbox' ? 'block' : 'none';
 
       if (mode === 'puzzles') {
         loadPuzzle(currentIdx);
+      } else if (mode === 'bot') {
+        startNewBotGame();
       } else if (mode === 'demo') {
         showPieceDemo('N');
       } else {
@@ -542,8 +530,6 @@
 
     function showPieceDemo(pieceType) {
       clearBoard();
-      highlightMoves = [];
-      
       const centerR = 4, centerC = 3;
       boardState[centerR][centerC] = pieceType;
       selectedSquare = posToSquare(centerR, centerC);
@@ -551,25 +537,12 @@
       const names = { 'P': 'Pawn', 'N': 'Knight', 'B': 'Bishop', 'R': 'Rook', 'Q': 'Queen', 'K': 'King' };
       document.getElementById('demo-title').innerText = `${names[pieceType]} Movement Demo`;
 
-      if (pieceType === 'P') {
-        highlightMoves = ['d5', 'd6'];
-        document.getElementById('demo-desc').innerText = "Pawns move 1 square straight forward (or 2 squares on their initial move).";
-      } else if (pieceType === 'N') {
-        highlightMoves = ['c6', 'e6', 'b5', 'f5', 'b3', 'f3', 'c2', 'e2'];
-        document.getElementById('demo-desc').innerText = "Knights move in an 'L-shape' (2 squares in one direction, 1 square across) and can jump over pieces.";
-      } else if (pieceType === 'B') {
-        highlightMoves = ['c5','b6','a7','e5','f6','g7','h8','c3','b2','a1','e3','f2','g1'];
-        document.getElementById('demo-desc').innerText = "Bishops move diagonally any distance in straight paths.";
-      } else if (pieceType === 'R') {
-        highlightMoves = ['d5','d6','d7','d8','d3','d2','d1','a4','b4','c4','e4','f4','g4','h4'];
-        document.getElementById('demo-desc').innerText = "Rooks move horizontally or vertically any distance along ranks and files.";
-      } else if (pieceType === 'Q') {
-        highlightMoves = ['c5','b6','a7','e5','f6','g7','h8','c3','b2','a1','e3','f2','g1','d5','d6','d7','d8','d3','d2','d1','a4','b4','c4','e4','f4','g4','h4'];
-        document.getElementById('demo-desc').innerText = "Queens combine the movements of both the Rook and Bishop (straight lines & diagonals).";
-      } else if (pieceType === 'K') {
-        highlightMoves = ['c5','d5','e5','c4','e4','c3','d3','e3'];
-        document.getElementById('demo-desc').innerText = "Kings move 1 square in any direction.";
-      }
+      if (pieceType === 'P') highlightMoves = ['d5', 'd6'];
+      else if (pieceType === 'N') highlightMoves = ['c6', 'e6', 'b5', 'f5', 'b3', 'f3', 'c2', 'e2'];
+      else if (pieceType === 'B') highlightMoves = ['c5','b6','a7','e5','f6','g7','h8','c3','b2','a1','e3','f2','g1'];
+      else if (pieceType === 'R') highlightMoves = ['d5','d6','d7','d8','d3','d2','d1','a4','b4','c4','e4','f4','g4','h4'];
+      else if (pieceType === 'Q') highlightMoves = ['c5','b6','a7','e5','f6','g7','h8','c3','b2','a1','e3','f2','g1','d5','d6','d7','d8','d3','d2','d1','a4','b4','c4','e4','f4','g4','h4'];
+      else if (pieceType === 'K') highlightMoves = ['c5','d5','e5','c4','e4','c3','d3','e3'];
 
       renderBoard();
     }
@@ -658,3 +631,4 @@
   </script>
 </body>
 </html>
+  
