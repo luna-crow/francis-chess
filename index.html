@@ -26,9 +26,7 @@
       --text-muted: #94a3b8;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -175,12 +173,8 @@
       transition: transform 0.15s ease, background-color 0.2s ease;
     }
 
-    .square.light { 
-      background-color: var(--light-sq); 
-    }
-    .square.dark { 
-      background-color: var(--dark-sq); 
-    }
+    .square.light { background-color: var(--light-sq); }
+    .square.dark { background-color: var(--dark-sq); }
 
     .piece-white {
       color: #ffffff !important;
@@ -196,9 +190,7 @@
       background-color: #fbbf24 !important; 
       box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
     }
-    .square.hint { 
-      background-color: var(--accent-amber) !important; 
-    }
+    .square.hint { background-color: var(--accent-amber) !important; }
 
     .legal-dot {
       position: absolute;
@@ -267,9 +259,7 @@
       color: #e2e8f0;
       box-shadow: none;
     }
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.18);
-    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.18); }
     .btn-warning { 
       background: linear-gradient(135deg, var(--accent-amber) 0%, #d97706 100%); 
       box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
@@ -293,9 +283,7 @@
       transition: border-color 0.2s ease;
     }
 
-    .difficulty-select:focus, .online-input:focus {
-      border-color: var(--primary);
-    }
+    .difficulty-select:focus, .online-input:focus { border-color: var(--primary); }
 
     .status-box {
       margin-top: 10px;
@@ -348,9 +336,7 @@
       text-align: left;
     }
 
-    .chat-msg {
-      margin-bottom: 4px;
-    }
+    .chat-msg { margin-bottom: 4px; }
 
     .pgn-container {
       margin-top: 10px;
@@ -409,28 +395,13 @@
       padding-bottom: 6px;
     }
 
-    .guide-item {
-      margin-bottom: 10px;
-    }
+    .guide-item { margin-bottom: 10px; }
+    .guide-item strong { color: #f8fafc; }
 
-    .guide-item strong {
-      color: #f8fafc;
-    }
-
-    ::-webkit-scrollbar {
-      width: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.1);
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
   </style>
 </head>
 <body>
@@ -464,8 +435,7 @@
   </div>
 
   <div class="controls" id="controls-panel">
-    <!-- Dynamic controls populate here -->
-  </div>
+    </div>
 
   <script>
     const firebaseConfig = {
@@ -545,11 +515,11 @@
     let engineWorker = null;
     let gameEnded = false;
 
-    // Persistent Player Username (Editable)
-    if (!sessionStorage.getItem('francis_player_id')) {
-      sessionStorage.setItem('francis_player_id', "Player_" + Math.floor(1000 + Math.random() * 9000));
+    // Persistent Device Username
+    if (!localStorage.getItem('francis_user_name')) {
+      localStorage.setItem('francis_user_name', "User_" + Math.floor(1000 + Math.random() * 9000));
     }
-    let playerName = sessionStorage.getItem('francis_player_id');
+    let playerName = localStorage.getItem('francis_user_name');
 
     // Online Multiplayer States
     let currentRoomId = null;
@@ -590,7 +560,7 @@
       const trimmed = val.trim();
       if (trimmed) {
         playerName = trimmed;
-        sessionStorage.setItem('francis_player_id', playerName);
+        localStorage.setItem('francis_user_name', playerName);
       }
     }
 
@@ -762,9 +732,7 @@
         return;
       }
 
-      if (currentMode === 'ai' && game.turn() !== playerSide) {
-        return;
-      }
+      if (currentMode === 'ai' && game.turn() !== playerSide) return;
 
       if (currentMode === 'online') {
         if (!currentRoomId) return;
@@ -1124,9 +1092,7 @@
       `;
     }
 
-    function setDifficulty(level) {
-      currentDifficulty = level;
-    }
+    function setDifficulty(level) { currentDifficulty = level; }
 
     function renderAIControls() {
       const controls = document.getElementById('controls-panel');
