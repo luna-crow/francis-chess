@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Francis Chess - Interactive Puzzles, Rules & AI</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
     :root {
       --primary: #4a6fa5;
@@ -213,12 +214,46 @@
       text-align: center;
     }
 
+    .room-list {
+      max-height: 100px;
+      overflow-y: auto;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      padding: 4px;
+      background: #f8f9fa;
+    }
+
+    .room-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      border-bottom: 1px solid #eee;
+      font-size: 0.8rem;
+    }
+
+    .chat-box {
+      height: 90px;
+      overflow-y: auto;
+      background: #f1f3f5;
+      border-radius: 6px;
+      padding: 6px;
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+      text-align: left;
+    }
+
+    .chat-msg {
+      margin-bottom: 4px;
+    }
+
     .pgn-container {
       margin-top: 10px;
       padding: 8px;
       background: #f1f3f5;
       border-radius: 6px;
-      max-height: 80px;
+      max-height: 60px;
       overflow-y: auto;
       font-family: monospace;
       font-size: 0.8rem;
@@ -304,16 +339,24 @@
   </div>
 
   <script>
+    const firebaseConfig = {
+      databaseURL: "https://francis-chess-default-rtdb.firebaseio.com"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.database();
+
     const puzzles = [
-      { name: "Back-Rank Mate", fen: "6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1", desc: "White to move. Deliver checkmate in 1 move with your Rook.", solution: ["a1a8"], hint: "Look at Black's undefended back rank. Your Rook on a1 can deliver mate!" },
-      { name: "Queen Skewer", fen: "3k4/8/8/3q4/8/8/8/3R2K1 w - - 0 1", desc: "White to move. Skewer the King and win the Queen.", solution: ["d1d5"], hint: "The Black King and Queen are aligned vertically on the d-file." },
-      { name: "Smothered Mate", fen: "6rk/6pp/7N/8/8/8/8/7K w - - 0 1", desc: "White to move. Deliver checkmate using the Knight.", solution: ["h6f7"], hint: "Jump your Knight to f7! The Black King is trapped by its own pieces." },
-      { name: "Scholar's Mate Finish", fen: "r1bqkb1r/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1", desc: "White to move. Deliver checkmate in 1 move.", solution: ["f3f7"], hint: "Target the vulnerable f7 square with your Queen supported by the Bishop." },
-      { name: "Discovered Check", fen: "3k4/8/8/8/3B4/8/3R4/3K4 w - - 0 1", desc: "White to move. Move the Bishop to reveal check from the Rook.", solution: ["d4b6"], hint: "Move the Bishop on d4 out of the way with check to reveal an attack from the Rook behind it." },
-      { name: "Rook Checkmate", fen: "4k3/8/4K3/8/8/8/8/7R w - - 0 1", desc: "White to move. Deliver back-rank checkmate with the Rook.", solution: ["h1h8"], hint: "Move your Rook to h8 to attack the King along the 8th rank." },
+      { name: "Back-Rank Mate", fen: "6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1", desc: "White to move. Deliver checkmate in 1 move with your Rook.", solution: ["a1a8"], hint: "Look at Black's undefended back rank." },
+      { name: "Queen Skewer", fen: "3k4/8/8/3q4/8/8/8/3R2K1 w - - 0 1", desc: "White to move. Skewer the King and win the Queen.", solution: ["d1d5"], hint: "The Black King and Queen are aligned vertically." },
+      { name: "Smothered Mate", fen: "6rk/6pp/7N/8/8/8/8/7K w - - 0 1", desc: "White to move. Deliver checkmate using the Knight.", solution: ["h6f7"], hint: "Jump your Knight to f7!" },
+      { name: "Scholar's Mate Finish", fen: "r1bqkb1r/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1", desc: "White to move. Deliver checkmate in 1 move.", solution: ["f3f7"], hint: "Target the f7 square with your Queen." },
+      { name: "Discovered Check", fen: "3k4/8/8/8/3B4/8/3R4/3K4 w - - 0 1", desc: "White to move. Move the Bishop to reveal check from the Rook.", solution: ["d4b6"], hint: "Move the Bishop out of the way with check." },
+      { name: "Rook Checkmate", fen: "4k3/8/4K3/8/8/8/8/7R w - - 0 1", desc: "White to move. Deliver back-rank checkmate with the Rook.", solution: ["h1h8"], hint: "Move your Rook to h8." },
       { name: "Support Mate", fen: "k7/8/1K6/8/8/8/8/7Q w - - 0 1", desc: "White to move. Deliver checkmate supported by the King.", solution: ["h1a1"], hint: "Swing your Queen over to the a-file." },
-      { name: "Pawn Promotion Check", fen: "4k3/3P4/8/8/8/8/8/4K3 w - - 0 1", desc: "White to move. Promote the pawn and give check.", solution: ["d7d8q"], hint: "Push your pawn to d8 and promote it to a Queen!" },
-      { name: "Double Check Mate", fen: "3k4/8/3R1N2/8/8/8/8/3K4 w - - 0 1", desc: "White to move. Deliver mate with a Knight move giving double check.", solution: ["f6e8"], hint: "Move the Knight to e8 so both the Knight and Rook check the King at once." }
+      { name: "Pawn Promotion Check", fen: "4k3/3P4/8/8/8/8/8/4K3 w - - 0 1", desc: "White to move. Promote the pawn and give check.", solution: ["d7d8q"], hint: "Push your pawn to d8 and promote." },
+      { name: "Double Check Mate", fen: "3k4/8/3R1N2/8/8/8/8/3K4 w - - 0 1", desc: "White to move. Deliver mate with a Knight move giving double check.", solution: ["f6e8"], hint: "Move the Knight to e8." }
     ];
 
     const pieceSymbols = {
@@ -329,17 +372,9 @@
     };
 
     const openingBook = {
-      "e4": "King's Pawn Opening",
-      "d4": "Queen's Pawn Opening",
-      "c4": "English Opening",
-      "Nf3": "Réti Opening",
-      "e4 e5": "Open Game",
-      "e4 e5 Nf3 Nc6 Bb5": "Ruy Lopez",
-      "e4 e5 Nf3 Nc6 Bc4": "Italian Game",
-      "e4 c5": "Sicilian Defense",
-      "e4 e6": "French Defense",
-      "e4 c6": "Caro-Kann Defense",
-      "d4 d5 c4": "Queen's Gambit"
+      "e4": "King's Pawn Opening", "d4": "Queen's Pawn Opening", "c4": "English Opening",
+      "e4 e5": "Open Game", "e4 e5 Nf3 Nc6 Bb5": "Ruy Lopez", "e4 e5 Nf3 Nc6 Bc4": "Italian Game",
+      "e4 c5": "Sicilian Defense", "e4 e6": "French Defense", "d4 d5 c4": "Queen's Gambit"
     };
 
     let game = new Chess();
@@ -351,19 +386,17 @@
     let activeDemoPiece = 'n';
     let currentDifficulty = 'intermediate';
     let engineWorker = null;
+    let gameEnded = false;
 
-    // Online PeerJS states
-    let peer = null;
-    let conn = null;
-    let myColor = 'w';
-    let myPeerId = '';
+    // Online Multiplayer States
+    let currentRoomId = null;
+    let onlineRole = 'w';
+    let playerName = "Player_" + Math.floor(Math.random() * 899 + 100);
 
     function initEngine() {
       if (window.Worker) {
         try {
-          const blob = new Blob([`
-            importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
-          `], { type: 'application/javascript' });
+          const blob = new Blob([`importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');`], { type: 'application/javascript' });
           engineWorker = new Worker(URL.createObjectURL(blob));
         } catch (e) {
           engineWorker = new Worker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
@@ -399,6 +432,7 @@
       const wrapper = document.getElementById('board-wrapper');
       selectedSquare = null;
       hintSquare = null;
+      gameEnded = false;
 
       if (mode === 'learn') {
         wrapper.style.display = 'none';
@@ -418,6 +452,7 @@
         game.reset();
         renderBoard();
         renderOnlineControls();
+        listenToRoomList();
       } else if (mode === 'demo') {
         setDemoPiece(activeDemoPiece);
         renderDemoControls();
@@ -434,7 +469,7 @@
       const boardState = game.board();
 
       let legalMoves = [];
-      if (selectedSquare) {
+      if (selectedSquare && !gameEnded) {
         legalMoves = game.moves({ square: selectedSquare, verbose: true }).map(m => m.to);
       } else if (currentMode === 'demo') {
         const demoSquare = findDemoPieceSquare();
@@ -500,6 +535,8 @@
     }
 
     function handleSquareClick(square) {
+      if (gameEnded) return;
+
       if (currentMode === 'sandbox') {
         if (palettePiece) {
           const color = palettePiece === palettePiece.toUpperCase() ? 'w' : 'b';
@@ -524,7 +561,7 @@
         return;
       }
 
-      if (currentMode === 'online' && game.turn() !== myColor) {
+      if (currentMode === 'online' && game.turn() !== onlineRole) {
         return;
       }
 
@@ -543,8 +580,11 @@
           } else if (currentMode === 'ai' && !game.game_over()) {
             updateGameStatus('Thinking...');
             setTimeout(makeCatchfishMove, 50);
-          } else if (currentMode === 'online') {
-            if (conn) conn.send({ type: 'move', move });
+          } else if (currentMode === 'online' && currentRoomId) {
+            db.ref('rooms/' + currentRoomId).update({
+              fen: game.fen(),
+              turn: game.turn()
+            });
             updateGameStatus();
           }
         }
@@ -559,6 +599,7 @@
       game.load(puzzle.fen);
       selectedSquare = null;
       hintSquare = null;
+      gameEnded = false;
       renderBoard();
       renderPuzzleControls();
     }
@@ -585,6 +626,7 @@
       if (puzzle.solution.includes(moveStr) || game.in_checkmate()) {
         statusEl.style.color = '#28a745';
         statusEl.textContent = '🎉 Correct! Puzzle Solved!';
+        gameEnded = true;
       } else {
         statusEl.style.color = '#dc3545';
         statusEl.textContent = '❌ Incorrect move. Try again!';
@@ -593,6 +635,7 @@
     }
 
     function makeCatchfishMove() {
+      if (gameEnded) return;
       const cfg = difficulties[currentDifficulty];
       if (engineWorker) {
         engineWorker.postMessage('uci');
@@ -631,67 +674,144 @@
       }
 
       if (game.in_checkmate()) {
+        gameEnded = true;
         statusEl.textContent = game.turn() === 'w' ? 'Checkmate! Black wins.' : 'Checkmate! White wins!';
       } else if (game.in_draw()) {
+        gameEnded = true;
         statusEl.textContent = 'Game drawn!';
       } else {
         if (currentMode === 'online') {
-          statusEl.textContent = game.turn() === myColor ? 'Your Turn' : "Opponent's Turn";
+          statusEl.textContent = game.turn() === onlineRole ? 'Your Turn' : "Opponent's Turn";
         } else {
           statusEl.textContent = game.turn() === 'w' ? 'Your turn (White)' : "Catchfish Engine 18's turn";
         }
       }
     }
 
-    function initPeer() {
-      if (!peer) {
-        peer = new Peer();
-        peer.on('open', (id) => {
-          myPeerId = id;
-          const hostIdEl = document.getElementById('host-id-display');
-          if (hostIdEl) hostIdEl.value = id;
+    function resignGame() {
+      gameEnded = true;
+      if (currentMode === 'online' && currentRoomId) {
+        const winner = onlineRole === 'w' ? 'Black' : 'White';
+        db.ref('rooms/' + currentRoomId).update({
+          status: `${playerName} Resigned. ${winner} Wins!`
         });
-
-        peer.on('connection', (c) => {
-          conn = c;
-          myColor = 'w';
-          setupConnection();
-          const netStatus = document.getElementById('net-status');
-          if (netStatus) netStatus.textContent = '🟢 Opponent Connected! Playing as White.';
-        });
+      } else {
+        updateGameStatus("You Resigned. Computer Wins!");
       }
     }
 
-    function hostOnlineGame() {
-      initPeer();
-      myColor = 'w';
-      game.reset();
-      renderBoard();
-      updateGameStatus();
+    function offerDraw() {
+      if (currentMode === 'online' && currentRoomId) {
+        db.ref('rooms/' + currentRoomId).update({
+          status: `${playerName} Offered a Draw.`
+        });
+      } else {
+        updateGameStatus("Draw offered. Computer accepted the Draw!");
+        gameEnded = true;
+      }
     }
 
-    function joinOnlineGame() {
-      initPeer();
-      const targetId = document.getElementById('join-peer-id').value.trim();
-      if (!targetId) return;
-      conn = peer.connect(targetId);
-      myColor = 'b';
-      setupConnection();
-    }
+    // Multiplayer Room & Chat Logic
+    function createOnlineRoom() {
+      const roomInput = document.getElementById('create-room-name');
+      const roomName = roomInput.value.trim() || (playerName + "'s Game");
+      currentRoomId = roomName.replace(/[^a-zA-Z0-9]/g, "_");
+      onlineRole = 'w';
+      gameEnded = false;
 
-    function setupConnection() {
-      conn.on('open', () => {
-        const netStatus = document.getElementById('net-status');
-        if (netStatus) netStatus.textContent = myColor === 'b' ? '🟢 Connected to Host! Playing as Black.' : '🟢 Client Connected!';
+      db.ref('rooms/' + currentRoomId).set({
+        name: roomName,
+        white: playerName,
+        black: "Waiting...",
+        fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        turn: 'w',
+        status: 'Game Active'
       });
 
-      conn.on('data', (data) => {
-        if (data.type === 'move') {
-          game.move(data.move);
-          renderBoard();
+      subscribeToRoom();
+    }
+
+    function joinOnlineRoom(roomId) {
+      currentRoomId = roomId;
+      onlineRole = 'b';
+      gameEnded = false;
+
+      db.ref('rooms/' + currentRoomId).update({
+        black: playerName
+      });
+
+      subscribeToRoom();
+    }
+
+    function listenToRoomList() {
+      db.ref('rooms').on('value', (snapshot) => {
+        const roomContainer = document.getElementById('public-rooms-list');
+        if (!roomContainer) return;
+        roomContainer.innerHTML = '';
+        const rooms = snapshot.val();
+        if (!rooms) {
+          roomContainer.innerHTML = '<div style="font-size:0.8rem; color:#888;">No active rooms found. Create one!</div>';
+          return;
+        }
+
+        Object.keys(rooms).forEach((key) => {
+          const room = rooms[key];
+          const div = document.createElement('div');
+          div.className = 'room-item';
+          div.innerHTML = `
+            <span><strong>${room.name}</strong> (${room.white} vs ${room.black})</span>
+            <button class="btn" onclick="joinOnlineRoom('${key}')" ${room.black !== 'Waiting...' ? 'disabled style="opacity:0.5"' : ''}>Join</button>
+          `;
+          roomContainer.appendChild(div);
+        });
+      });
+    }
+
+    function subscribeToRoom() {
+      db.ref('rooms/' + currentRoomId).on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+        game.load(data.fen);
+        renderBoard();
+        if (data.status && data.status !== 'Game Active') {
+          updateGameStatus(data.status);
+          gameEnded = true;
+        } else {
           updateGameStatus();
         }
+        const netStatus = document.getElementById('net-status');
+        if (netStatus) {
+          netStatus.textContent = `🟢 Room: ${data.name} | White: ${data.white} | Black: ${data.black}`;
+        }
       });
+
+      db.ref('chats/' + currentRoomId).on('value', (snapshot) => {
+        const chatBox = document.getElementById('chat-messages');
+        if (!chatBox) return;
+        chatBox.innerHTML = '';
+        const chats = snapshot.val();
+        if (chats) {
+          Object.values(chats).forEach((msg) => {
+            const div = document.createElement('div');
+            div.className = 'chat-msg';
+            div.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text}`;
+            chatBox.appendChild(div);
+          });
+          chatBox.scrollTop = chatBox.scrollHeight;
+        }
+      });
+    }
+
+    function sendChatMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text || !currentRoomId) return;
+
+      db.ref('chats/' + currentRoomId).push({
+        sender: playerName,
+        text: text
+      });
+      input.value = '';
     }
 
     function renderPuzzleControls() {
@@ -733,27 +853,43 @@
         <div id="game-status" class="status-box">Your turn (White)</div>
         <div id="opening-name" class="opening-box">Opening: Standard Opening / Custom</div>
         <div id="pgn-log" class="pgn-container">1. ...</div>
-        <button class="btn btn-danger" style="margin-top:10px;" onclick="game.reset(); renderBoard(); updateGameStatus();">Restart Game</button>
+        <div style="display:flex; gap:6px; margin-top:10px;">
+          <button class="btn btn-warning" style="flex:1;" onclick="offerDraw()">🤝 Draw</button>
+          <button class="btn btn-danger" style="flex:1;" onclick="resignGame()">🏳️ Resign</button>
+          <button class="btn btn-secondary" style="flex:1;" onclick="gameEnded=false; game.reset(); renderBoard(); updateGameStatus();">🔄 Reset</button>
+        </div>
       `;
     }
 
     function renderOnlineControls() {
       const controls = document.getElementById('controls-panel');
       controls.innerHTML = `
-        <h3>Play Online Multiplayer</h3>
-        <div id="net-status" class="status-box" style="margin-bottom:10px;">Click Host or enter ID to Join</div>
-        <div style="margin-bottom:10px;">
-          <button class="btn" style="width:100%;" onclick="hostOnlineGame()">Create / Host Match</button>
-          <input type="text" id="host-id-display" class="online-input" style="margin-top:6px;" readonly placeholder="Your Game ID will appear here">
+        <h3>Online Rooms & Live Chat</h3>
+        <div id="net-status" class="status-box" style="margin-bottom:10px;">Lobby: Active Rooms Available Below</div>
+        
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+          <input type="text" id="create-room-name" class="online-input" style="margin:0;" placeholder="Enter Room Name">
+          <button class="btn" style="white-space:nowrap;" onclick="createOnlineRoom()">Create Room</button>
         </div>
-        <hr style="border:0; border-top:1px solid #ddd; margin:10px 0;">
-        <div>
-          <input type="text" id="join-peer-id" class="online-input" placeholder="Paste Opponent Game ID">
-          <button class="btn btn-secondary" style="width:100%;" onclick="joinOnlineGame()">Join Match</button>
-        </div>
-        <div id="game-status" class="status-box" style="margin-top:10px;">Connecting...</div>
+
+        <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px;">Public Rooms:</label>
+        <div id="public-rooms-list" class="room-list"></div>
+
+        <div id="game-status" class="status-box">Join or create a room to play</div>
         <div id="opening-name" class="opening-box">Opening: Standard Opening / Custom</div>
-        <div id="pgn-log" class="pgn-container">1. ...</div>
+
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button class="btn btn-warning" style="flex:1;" onclick="offerDraw()">🤝 Draw</button>
+          <button class="btn btn-danger" style="flex:1;" onclick="resignGame()">🏳️ Resign</button>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div id="chat-messages" class="chat-box"></div>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="chat-input" class="online-input" style="margin:0;" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+            <button class="btn btn-secondary" onclick="sendChatMessage()">Send</button>
+          </div>
+        </div>
       `;
     }
 
