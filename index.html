@@ -8,38 +8,68 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
     :root {
-      --primary: #4a6fa5;
-      --accent: #ff6b6b;
-      --light-sq: #f0d9b5;
-      --dark-sq: #b58863;
-      --bg: #f8f9fa;
-      --card: #ffffff;
-      --text: #2b2d42;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --accent-pink: #ec4899;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-green: #10b981;
+      --light-sq: #e2e8f0;
+      --dark-sq: #6366f1;
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
     }
 
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--bg);
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 100%);
       color: var(--text);
       margin: 0;
-      padding: 15px;
+      padding: 20px 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      min-height: 100vh;
     }
 
     h1 {
-      margin: 10px 0 5px;
-      color: var(--primary);
+      margin: 0 0 4px;
+      font-weight: 800;
+      font-size: 1.8rem;
+      background: linear-gradient(135deg, #a5b4fc 0%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
       text-align: center;
+      letter-spacing: -0.025em;
     }
 
     .subtitle {
-      font-size: 0.95rem;
-      color: #6c757d;
-      margin-bottom: 15px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 18px;
       text-align: center;
+      font-weight: 500;
+    }
+
+    .board-header {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #c084fc;
+      text-align: center;
+      margin-bottom: 8px;
+      height: 20px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
     }
 
     .nav-tabs {
@@ -47,45 +77,53 @@
       flex-wrap: wrap;
       gap: 6px;
       justify-content: center;
-      margin-bottom: 15px;
+      margin-bottom: 18px;
       width: 100%;
-      max-width: 380px;
+      max-width: 420px;
     }
 
     .tab-btn {
-      background-color: var(--card);
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
-      padding: 6px 10px;
-      font-size: 0.8rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 9999px;
+      padding: 7px 14px;
+      font-size: 0.78rem;
       font-weight: 600;
-      color: var(--primary);
+      color: var(--text-muted);
       cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      transition: all 0.2s ease;
+      backdrop-filter: blur(12px);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tab-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      transform: translateY(-1px);
     }
 
     .tab-btn.active {
-      background-color: var(--primary);
+      background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
       color: white;
-      border-color: var(--primary);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
     }
 
     #board-wrapper {
       position: relative;
       width: 100%;
-      max-width: 380px;
-      background: var(--card);
-      padding: 8px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      box-sizing: border-box;
+      max-width: 400px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      padding: 12px;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
     }
 
     .board-container {
       display: grid;
-      grid-template-columns: 18px 1fr;
-      grid-template-rows: 1fr 18px;
+      grid-template-columns: 20px 1fr;
+      grid-template-rows: 1fr 20px;
       width: 100%;
     }
 
@@ -94,8 +132,8 @@
       flex-direction: column;
       justify-content: space-around;
       align-items: center;
-      font-weight: bold;
-      color: var(--primary);
+      font-weight: 700;
+      color: var(--text-muted);
       font-size: 0.75rem;
     }
 
@@ -104,10 +142,10 @@
       display: flex;
       justify-content: space-around;
       align-items: center;
-      font-weight: bold;
-      color: var(--primary);
+      font-weight: 700;
+      color: var(--text-muted);
       font-size: 0.75rem;
-      padding-top: 2px;
+      padding-top: 4px;
     }
 
     .board {
@@ -118,10 +156,9 @@
       grid-template-rows: repeat(8, 1fr);
       width: 100%;
       aspect-ratio: 1 / 1;
-      border: 2px solid #333;
-      border-radius: 4px;
+      border-radius: 10px;
       overflow: hidden;
-      box-sizing: border-box;
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.1);
     }
 
     .square {
@@ -129,38 +166,75 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 1.6rem;
+      font-size: 2rem;
       cursor: pointer;
       user-select: none;
       width: 100%;
       height: 100%;
       aspect-ratio: 1 / 1;
-      box-sizing: border-box;
+      transition: transform 0.15s ease, background-color 0.2s ease;
     }
 
-    .square.light { background-color: var(--light-sq); }
-    .square.dark { background-color: var(--dark-sq); }
-    .square.selected { background-color: #baca44 !important; }
-    .square.hint { background-color: #f39c12 !important; }
+    .square.light { 
+      background-color: var(--light-sq); 
+    }
+    .square.dark { 
+      background-color: var(--dark-sq); 
+    }
+
+    .piece-white {
+      color: #ffffff !important;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px #000000;
+    }
+
+    .piece-black {
+      color: #0f172a !important;
+      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4);
+    }
+    
+    .square.selected { 
+      background-color: #fbbf24 !important; 
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    }
+    .square.hint { 
+      background-color: var(--accent-amber) !important; 
+    }
 
     .legal-dot {
       position: absolute;
-      width: 12px;
-      height: 12px;
-      background-color: rgba(0, 0, 0, 0.25);
+      width: 14px;
+      height: 14px;
+      background-color: rgba(16, 185, 129, 0.75);
+      border: 2px solid #ffffff;
       border-radius: 50%;
       pointer-events: none;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+      animation: pulseDot 1.5s infinite ease-in-out;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.15); opacity: 1; }
     }
 
     .controls {
       width: 100%;
-      max-width: 380px;
-      margin-top: 15px;
-      background: var(--card);
-      padding: 12px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-      box-sizing: border-box;
+      max-width: 400px;
+      margin-top: 16px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      padding: 16px;
+      border-radius: 20px;
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .controls h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f1f5f9;
     }
 
     .puzzle-grid {
@@ -171,76 +245,106 @@
     }
 
     .btn {
-      background-color: var(--primary);
+      background: linear-gradient(135deg, var(--primary) 0%, #4338ca 100%);
       color: white;
       border: none;
-      padding: 8px 10px;
-      border-radius: 6px;
+      padding: 9px 12px;
+      border-radius: 10px;
       cursor: pointer;
       font-weight: 600;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+      transition: all 0.2s ease;
     }
 
-    .btn:hover { opacity: 0.9; }
-    .btn-secondary { background-color: #6c757d; }
-    .btn-warning { background-color: #f39c12; }
-    .btn-danger { background-color: var(--accent); }
+    .btn:hover { 
+      opacity: 0.95; 
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+    }
+    .btn-secondary { 
+      background: rgba(255, 255, 255, 0.1); 
+      color: #e2e8f0;
+      box-shadow: none;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+    .btn-warning { 
+      background: linear-gradient(135deg, var(--accent-amber) 0%, #d97706 100%); 
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+    }
+    .btn-danger { 
+      background: linear-gradient(135deg, var(--accent-red) 0%, #dc2626 100%); 
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    }
 
     .difficulty-select, .online-input {
       width: 100%;
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      color: var(--text);
       font-size: 0.85rem;
+      font-family: inherit;
       margin-bottom: 10px;
-      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .difficulty-select:focus, .online-input:focus {
+      border-color: var(--primary);
     }
 
     .status-box {
       margin-top: 10px;
-      padding: 8px;
-      border-radius: 6px;
-      background: #e9ecef;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
       font-size: 0.85rem;
       text-align: center;
-      font-weight: 500;
+      font-weight: 600;
+      color: #e2e8f0;
     }
 
     .opening-box {
-      margin-top: 6px;
+      margin-top: 8px;
       font-size: 0.8rem;
-      color: var(--primary);
+      color: #a5b4fc;
       font-weight: 700;
       text-align: center;
     }
 
     .room-list {
-      max-height: 100px;
+      max-height: 120px;
       overflow-y: auto;
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
       margin-bottom: 10px;
-      padding: 4px;
-      background: #f8f9fa;
+      padding: 6px;
+      background: rgba(15, 23, 42, 0.6);
     }
 
     .room-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 6px 8px;
-      border-bottom: 1px solid #eee;
+      padding: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       font-size: 0.8rem;
     }
 
     .chat-box {
       height: 90px;
       overflow-y: auto;
-      background: #f1f3f5;
-      border-radius: 6px;
-      padding: 6px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 8px;
       font-size: 0.8rem;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       text-align: left;
     }
 
@@ -250,16 +354,17 @@
 
     .pgn-container {
       margin-top: 10px;
-      padding: 8px;
-      background: #f1f3f5;
-      border-radius: 6px;
+      padding: 10px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
       max-height: 60px;
       overflow-y: auto;
       font-family: monospace;
       font-size: 0.8rem;
-      color: #333;
+      color: #94a3b8;
       text-align: left;
-      line-height: 1.3;
+      line-height: 1.4;
     }
 
     .piece-palette {
@@ -272,37 +377,60 @@
 
     .palette-piece {
       font-size: 1.5rem;
-      padding: 2px 6px;
-      background: #e9ecef;
-      border-radius: 6px;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
 
     .palette-piece.active {
       background: var(--primary);
+      border-color: rgba(255, 255, 255, 0.3);
       color: white;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
     }
 
     .guide-section {
       text-align: left;
-      line-height: 1.4;
+      line-height: 1.5;
       font-size: 0.85rem;
+      max-height: 350px;
+      overflow-y: auto;
+      padding-right: 4px;
     }
 
     .guide-section h3 {
-      color: var(--primary);
-      margin-top: 12px;
-      margin-bottom: 5px;
-      border-bottom: 2px solid #e9ecef;
-      padding-bottom: 4px;
+      color: #a5b4fc;
+      margin-top: 14px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 6px;
     }
 
     .guide-item {
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .guide-item strong {
-      color: var(--text);
+      color: #f8fafc;
+    }
+
+    /* Scrollbar Polish */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
     }
   </style>
 </head>
@@ -315,12 +443,14 @@
     <button class="tab-btn active" onclick="switchMode('puzzle', event)">🧩 Puzzles Mode</button>
     <button class="tab-btn" onclick="switchMode('ai', event)">🤖 Play vs Computer</button>
     <button class="tab-btn" onclick="switchMode('online', event)">🕹️ Play Online</button>
+    <button class="tab-btn" onclick="switchMode('openings', event)">📖 Openings Library</button>
     <button class="tab-btn" onclick="switchMode('demo', event)">♟️ Movement Demo</button>
     <button class="tab-btn" onclick="switchMode('sandbox', event)">🛠️ Sandbox Builder</button>
     <button class="tab-btn" onclick="switchMode('learn', event)">📖 Learn Chess</button>
   </div>
 
   <div id="board-wrapper">
+    <div id="active-opening-title" class="board-header"></div>
     <div class="board-container">
       <div class="ranks-labels">
         <span>8</span><span>7</span><span>6</span><span>5</span>
@@ -335,8 +465,7 @@
   </div>
 
   <div class="controls" id="controls-panel">
-    <!-- Dynamic controls populate here -->
-  </div>
+    </div>
 
   <script>
     const firebaseConfig = {
@@ -374,7 +503,34 @@
     const openingBook = {
       "e4": "King's Pawn Opening", "d4": "Queen's Pawn Opening", "c4": "English Opening",
       "e4 e5": "Open Game", "e4 e5 Nf3 Nc6 Bb5": "Ruy Lopez", "e4 e5 Nf3 Nc6 Bc4": "Italian Game",
-      "e4 c5": "Sicilian Defense", "e4 e6": "French Defense", "d4 d5 c4": "Queen's Gambit"
+      "e4 c5": "Sicilian Defense", "e4 e6": "French Defense"
+    };
+
+    const detailedOpenings = {
+      white: [
+        { name: "Ruy Lopez", moves: ["e2e4", "e7e5", "g1f3", "b8c6", "f1b5"], label: "e4 e5 Nf3 Nc6 Bb5", desc: "Pressures Black's knight on c6 while building central momentum." },
+        { name: "Italian Game", moves: ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4"], label: "e4 e5 Nf3 Nc6 Bc4", desc: "Targets the weak f7 square early to pressure Black." },
+        { name: "Four Knights Game", moves: ["e2e4", "e7e5", "g1f3", "b8c6", "b1c3", "g8f6"], label: "e4 e5 Nf3 Nc6 Nc3 Nf6", desc: "Solid and symmetrical piece development." },
+        { name: "English Opening", moves: ["c2c4"], label: "c4", desc: "Controls d5 from the flank without committing central pawns immediately." },
+        { name: "Torre Attack", moves: ["d2d4", "g8f6", "g1f3", "e7e6", "c1g5"], label: "d4 Nf6 Nf3 e6 Bg5", desc: "Pins or pressures the Knight early on g5." },
+        { name: "Scotch Game", moves: ["e2e4", "e7e5", "g1f3", "b8c6", "d2d4"], label: "e4 e5 Nf3 Nc6 d4", desc: "Forces early central pawn exchanges to clear room for pieces." },
+        { name: "London System", moves: ["d2d4", "d7d5", "g1f3", "g8f6", "c1f4"], label: "d4 d5 Nf3 Nf6 Bf4", desc: "A highly resilient schematic setup solidifying the center." },
+        { name: "Catalan Opening", moves: ["d2d4", "g8f6", "c2c4", "e7e6", "g2g3"], label: "d4 Nf6 c4 e6 g3", desc: "Combines central pressure with a king-side fianchetto." },
+        { name: "Réti Opening", moves: ["g1f3", "d7d5", "c2c4"], label: "Nf3 d5 c4", desc: "Hypermodern approach attacking Black's center from distance." },
+        { name: "Vienna Game", moves: ["e2e4", "e7e5", "b1c3"], label: "e4 e5 Nc3", desc: "A flexible strategy keeping options open for f4 or Bc4." }
+      ],
+      black: [
+        { name: "Sicilian Defense", moves: ["e2e4", "c7c5"], label: "e4 c5", desc: "Fights asymmetric control over the d4 square." },
+        { name: "French Defense", moves: ["e2e4", "e7e6", "d2d4", "d7d5"], label: "e4 e6 d4 d5", desc: "Solid counter-attack directly challenging White's e4 pawn." },
+        { name: "Scandinavian Defense", moves: ["e2e4", "d7d5"], label: "e4 d5", desc: "Immediately challenges White's central e4 pawn on move one." },
+        { name: "Nimzo-Indian Defense", moves: ["d2d4", "g8f6", "c2c4", "e7e6", "b1c3", "f8b4"], label: "d4 Nf6 c4 e6 Nc3 Bb4", desc: "Pins White's knight to restrain White's central push." },
+        { name: "Slav Defense", moves: ["d2d4", "d7d5", "c2c4", "c7c6"], label: "d4 d5 c4 c6", desc: "Supports d5 with c6 without blocking the c8-bishop." },
+        { name: "Dutch Defense", moves: ["d2d4", "f7f5"], label: "d4 f5", desc: "An aggressive flank push claiming control over e4." },
+        { name: "Alekhine's Defense", moves: ["e2e4", "g8f6"], label: "e4 Nf6", desc: "Provokes White's pawns forward to overextend and attack them." },
+        { name: "Pirc Defense", moves: ["e2e4", "d7d6", "d2d4", "g8f6", "b1c3", "g7g6"], label: "e4 d6 d4 Nf6 Nc3 g6", desc: "Hypermodern defense building a solid fortress before hitting back." },
+        { name: "Grünfeld Defense", moves: ["d2d4", "g8f6", "c2c4", "g7g6", "b1c3", "d7d5"], label: "d4 Nf6 c4 g6 Nc3 d5", desc: "Challenges White's central pawn center with rapid counter-strikes." },
+        { name: "Benoni Defense", moves: ["d2d4", "g8f6", "c2c4", "c7c5"], label: "d4 Nf6 c4 c5", desc: "Creates unbalanced, dynamic positions by attacking d4." }
+      ]
     };
 
     let game = new Chess();
@@ -424,6 +580,11 @@
       loadPuzzle(0);
     }
 
+    function setBoardTitle(title) {
+      const el = document.getElementById('active-opening-title');
+      if (el) el.textContent = title;
+    }
+
     function switchMode(mode, evt) {
       currentMode = mode;
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -433,6 +594,7 @@
       selectedSquare = null;
       hintSquare = null;
       gameEnded = false;
+      setBoardTitle("");
 
       if (mode === 'learn') {
         wrapper.style.display = 'none';
@@ -453,6 +615,10 @@
         renderBoard();
         renderOnlineControls();
         listenToRoomList();
+      } else if (mode === 'openings') {
+        game.reset();
+        renderBoard();
+        renderOpeningsControls();
       } else if (mode === 'demo') {
         setDemoPiece(activeDemoPiece);
         renderDemoControls();
@@ -492,6 +658,7 @@
           if (piece) {
             const pieceChar = piece.color === 'w' ? piece.type.toUpperCase() : piece.type.toLowerCase();
             square.textContent = pieceSymbols[pieceChar] || '';
+            square.classList.add(piece.color === 'w' ? 'piece-white' : 'piece-black');
           }
 
           if (legalMoves.includes(squareName)) {
@@ -561,8 +728,9 @@
         return;
       }
 
-      if (currentMode === 'online' && game.turn() !== onlineRole) {
-        return;
+      if (currentMode === 'online') {
+        if (!currentRoomId) return;
+        if (game.turn() !== onlineRole) return;
       }
 
       if (!selectedSquare) {
@@ -593,6 +761,17 @@
       }
     }
 
+    function demoOpening(name, moveList) {
+      game.reset();
+      for (let m of moveList) {
+        let from = m.substring(0, 2);
+        let to = m.substring(2, 4);
+        game.move({ from, to, promotion: 'q' });
+      }
+      setBoardTitle(name);
+      renderBoard();
+    }
+
     function loadPuzzle(index) {
       currentPuzzleIndex = index;
       const puzzle = puzzles[index];
@@ -612,7 +791,7 @@
         hintSquare = solutionMove.substring(0, 2);
         renderBoard();
         if (statusEl) {
-          statusEl.style.color = '#e67e22';
+          statusEl.style.color = '#fbbf24';
           statusEl.textContent = `💡 Hint: ${puzzle.hint}`;
         }
       }
@@ -624,11 +803,11 @@
       const statusEl = document.getElementById('puzzle-status');
 
       if (puzzle.solution.includes(moveStr) || game.in_checkmate()) {
-        statusEl.style.color = '#28a745';
+        statusEl.style.color = '#34d399';
         statusEl.textContent = '🎉 Correct! Puzzle Solved!';
         gameEnded = true;
       } else {
-        statusEl.style.color = '#dc3545';
+        statusEl.style.color = '#f87171';
         statusEl.textContent = '❌ Incorrect move. Try again!';
         setTimeout(() => loadPuzzle(currentPuzzleIndex), 1000);
       }
@@ -681,7 +860,7 @@
         statusEl.textContent = 'Game drawn!';
       } else {
         if (currentMode === 'online') {
-          statusEl.textContent = game.turn() === onlineRole ? 'Your Turn' : "Opponent's Turn";
+          statusEl.textContent = game.turn() === onlineRole ? `Your Turn (${onlineRole === 'w' ? 'White' : 'Black'})` : `Opponent's Turn (${game.turn() === 'w' ? 'White' : 'Black'})`;
         } else {
           statusEl.textContent = game.turn() === 'w' ? 'Your turn (White)' : "Catchfish Engine 18's turn";
         }
@@ -750,7 +929,7 @@
         roomContainer.innerHTML = '';
         const rooms = snapshot.val();
         if (!rooms) {
-          roomContainer.innerHTML = '<div style="font-size:0.8rem; color:#888;">No active rooms found. Create one!</div>';
+          roomContainer.innerHTML = '<div style="font-size:0.8rem; color:#64748b;">No active rooms found. Create one!</div>';
           return;
         }
 
@@ -760,7 +939,7 @@
           div.className = 'room-item';
           div.innerHTML = `
             <span><strong>${room.name}</strong> (${room.white} vs ${room.black})</span>
-            <button class="btn" onclick="joinOnlineRoom('${key}')" ${room.black !== 'Waiting...' ? 'disabled style="opacity:0.5"' : ''}>Join</button>
+            <button class="btn" onclick="joinOnlineRoom('${key}')" ${room.black !== 'Waiting...' && onlineRole !== 'b' ? 'disabled style="opacity:0.5"' : ''}>Join</button>
           `;
           roomContainer.appendChild(div);
         });
@@ -794,7 +973,7 @@
           Object.values(chats).forEach((msg) => {
             const div = document.createElement('div');
             div.className = 'chat-msg';
-            div.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text}`;
+            div.innerHTML = `<strong style="color:#a5b4fc;">${msg.sender}:</strong> ${msg.text}`;
             chatBox.appendChild(div);
           });
           chatBox.scrollTop = chatBox.scrollHeight;
@@ -826,7 +1005,7 @@
           `).join('')}
         </div>
         <h3>Puzzle ${currentPuzzleIndex + 1}: ${puzzle.name}</h3>
-        <p>${puzzle.desc}</p>
+        <p style="font-size:0.85rem; color:#94a3b8; margin-top:4px;">${puzzle.desc}</p>
         <div id="puzzle-status" class="status-box">Your turn (White)</div>
         <div style="display:flex; gap:8px; margin-top:10px;">
           <button class="btn btn-warning" style="flex:1;" onclick="showPuzzleHint()">💡 Hint</button>
@@ -843,7 +1022,7 @@
       const controls = document.getElementById('controls-panel');
       controls.innerHTML = `
         <h3>Play vs Computer (Catchfish Engine 18)</h3>
-        <label for="difficulty" style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">Select Difficulty:</label>
+        <label for="difficulty" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Select Difficulty:</label>
         <select id="difficulty" class="difficulty-select" onchange="setDifficulty(this.value)">
           <option value="novice" ${currentDifficulty === 'novice' ? 'selected' : ''}>Novice</option>
           <option value="intermediate" ${currentDifficulty === 'intermediate' ? 'selected' : ''}>Intermediate</option>
@@ -872,7 +1051,7 @@
           <button class="btn" style="white-space:nowrap;" onclick="createOnlineRoom()">Create Room</button>
         </div>
 
-        <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px;">Public Rooms:</label>
+        <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#94a3b8;">Public Rooms:</label>
         <div id="public-rooms-list" class="room-list"></div>
 
         <div id="game-status" class="status-box">Join or create a room to play</div>
@@ -883,12 +1062,37 @@
           <button class="btn btn-danger" style="flex:1;" onclick="resignGame()">🏳️ Resign</button>
         </div>
 
-        <div style="margin-top:10px;">
+        <div style="margin-top:12px;">
           <div id="chat-messages" class="chat-box"></div>
           <div style="display:flex; gap:6px;">
             <input type="text" id="chat-input" class="online-input" style="margin:0;" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendChatMessage()">
             <button class="btn btn-secondary" onclick="sendChatMessage()">Send</button>
           </div>
+        </div>
+      `;
+    }
+
+    function renderOpeningsControls() {
+      const controls = document.getElementById('controls-panel');
+      controls.innerHTML = `
+        <div class="guide-section">
+          <h3>⚪ 10 Essential Openings for White</h3>
+          ${detailedOpenings.white.map(op => `
+            <div class="guide-item" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+              <strong>${op.name} (${op.label})</strong>
+              <p style="margin: 4px 0; color:#94a3b8;">${op.desc}</p>
+              <button class="btn btn-secondary" onclick="demoOpening('${op.name}', [${op.moves.map(m => `'${m}'`).join(',')}])">Show Demo</button>
+            </div>
+          `).join('')}
+
+          <h3>⚫ 10 Essential Openings for Black</h3>
+          ${detailedOpenings.black.map(op => `
+            <div class="guide-item" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+              <strong>${op.name} (${op.label})</strong>
+              <p style="margin: 4px 0; color:#94a3b8;">${op.desc}</p>
+              <button class="btn btn-secondary" onclick="demoOpening('${op.name}', [${op.moves.map(m => `'${m}'`).join(',')}])">Show Demo</button>
+            </div>
+          `).join('')}
         </div>
       `;
     }
@@ -902,7 +1106,7 @@
       const controls = document.getElementById('controls-panel');
       controls.innerHTML = `
         <h3>Movement Demo</h3>
-        <p>Select a piece type to demonstrate legal moves on an empty board:</p>
+        <p style="font-size:0.85rem; color:#94a3b8;">Select a piece type to demonstrate legal moves on an empty board:</p>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
           ${pieces.map(p => `
             <button class="btn ${activeDemoPiece === p.char ? '' : 'btn-secondary'}" onclick="setDemoPiece('${p.char}')">${p.name}</button>
@@ -925,7 +1129,7 @@
       const controls = document.getElementById('controls-panel');
       controls.innerHTML = `
         <h3>Sandbox Board Builder</h3>
-        <p>Select a piece below, then tap any square on the board to place it.</p>
+        <p style="font-size:0.85rem; color:#94a3b8;">Select a piece below, then tap any square on the board to place it.</p>
         <div class="piece-palette">
           ${pieces.map(p => `
             <span class="palette-piece ${p === palettePiece ? 'active' : ''}" onclick="selectPalettePiece('${p}')">
